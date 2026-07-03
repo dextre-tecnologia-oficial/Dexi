@@ -116,6 +116,13 @@
   <button id="trigger-left" onclick="toggleMenu(true)"
     class="fixed left-0 top-1/2 -translate-y-1/2 z-40 bg-amber-500 hover:bg-amber-600 text-white p-3 rounded-r-xl shadow-lg transition-all font-bold hidden">&gt;</button>
 
+  <!-- Controles de Zoom Fluido -->
+  <div class="fixed bottom-6 right-6 z-40 flex flex-col gap-2 bg-white/80 dark:bg-slate-900/80 backdrop-blur border border-slate-200 dark:border-slate-800 p-2 rounded-2xl shadow-xl">
+    <button onclick="changeZoom(0.1)" class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-white transition-all font-bold text-lg flex items-center justify-center">+</button>
+    <button onclick="resetZoom()" id="zoom-indicator" class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all font-mono text-[10px] font-bold flex items-center justify-center">100%</button>
+    <button onclick="changeZoom(-0.1)" class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-white transition-all font-bold text-lg flex items-center justify-center">-</button>
+  </div>
+
   <div class="flex h-screen w-screen relative overflow-hidden">
 
     <aside id="sidebar"
@@ -162,13 +169,13 @@
       <div
         class="text-[0.78rem] text-slate-500 dark:text-slate-400 leading-relaxed p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 mt-4">
         <strong class="text-slate-700 dark:text-slate-200">Como usar:</strong><br>
-        1. Clique/toque no fundo vazio e arraste para se movimentar pelo quadro em qualquer direção;<br>
-        <br><br>
-        2. Arraste arquivos ou links direto para a grade para criar novos cards;<br>
-        <br><br>
-        3. Clique em "Sincronizar" para fazer upload de alguma pasta local ou em nuvem para o quadro;
-        <br><br>
-        4. Pressione Ctrl + V ou use o botão "Colar" para adicionar links rápidos;<br>
+        1. Clique/toque no fundo vazio e arraste para se movimentar pelo quadro;<br>
+        <br>
+        2. Use a **roda do mouse** ou os botões no canto inferior direito para dar **Zoom**;<br>
+        <br>
+        3. Arraste arquivos ou links direto para a grade para criar novos cards;<br>
+        <br>
+        4. Clique em "Sincronizar" para fazer upload de alguma pasta local ou em nuvem;<br>
       </div>
     </aside>
 
@@ -205,6 +212,7 @@
     let isPanning = false;
     let startX = 0, startY = 0;
     let panX = 0, panY = 0;
+    let zoom = 1;
 
     let mouseXCanvas = 200;
     let mouseYCanvas = 200;
@@ -251,6 +259,60 @@
       transaction.objectStore(["media"]).delete(id);
     }
 
+    function updateTransform() {
+      canvasContainer.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+      boardWrapper.style.backgroundPosition = `${panX}px ${panY}px`;
+      boardWrapper.style.backgroundSize = `${32 * zoom}px ${32 * zoom}px`;
+      document.getElementById('zoom-indicator').innerText = `${Math.round(zoom * 100)}%`;
+    }
+
+    // --- FUNÇÕES DE ZOOM ---
+    function handleWheel(e) {
+      e.preventDefault();
+      const zoomFactor = 1.1;
+      let newZoom = zoom;
+
+      if (e.deltaY < 0) {
+        newZoom = Math.min(zoom * zoomFactor, 3);
+      } else {
+        newZoom = Math.max(zoom / zoomFactor, 0.15);
+      }
+
+      const rect = boardWrapper.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      // Ajusta o Pan para dar zoom apontando para o cursor do mouse
+      panX = mouseX - (mouseX - panX) * (newZoom / zoom);
+      panY = mouseY - (mouseY - panY) * (newZoom / zoom);
+
+      zoom = newZoom;
+      updateTransform();
+    }
+    boardWrapper.addEventListener('wheel', handleWheel, { passive: false });
+
+    function changeZoom(delta) {
+      let newZoom = zoom + delta;
+      newZoom = Math.max(0.15, Math.min(newZoom, 3));
+      
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      
+      // Ajusta o Pan baseado no centro da tela
+      panX = width / 2 - (width / 2 - panX) * (newZoom / zoom);
+      panY = height / 2 - (height / 2 - panY) * (newZoom / zoom);
+      
+      zoom = newZoom;
+      updateTransform();
+    }
+
+    function resetZoom() {
+      zoom = 1;
+      panX = 0;
+      panY = 0;
+      updateTransform();
+    }
+
     function startPan(e) {
       if (e.target.closest('.codex-card') || e.target.closest('aside') || e.target.closest('button') || e.target.closest('input') || e.target.closest('a') || e.target.closest('canvas') || e.target.closest('embed')) {
         isPanning = false;
@@ -271,8 +333,7 @@
       panY = pageY - startY;
       if (panX > 0) panX = 0;
       if (panY > 0) panY = 0;
-      canvasContainer.style.transform = `translate(${panX}px, ${panY}px)`;
-      boardWrapper.style.backgroundPosition = `${panX}px ${panY}px`;
+      updateTransform();
     }
 
     function endPan() { isPanning = false; }
@@ -289,8 +350,8 @@
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
       if (clientX && clientY) {
-        mouseXCanvas = clientX - rect.left;
-        mouseYCanvas = clientY - rect.top;
+        mouseXCanvas = (clientX - rect.left) / zoom;
+        mouseYCanvas = (clientY - rect.top) / zoom;
       }
     }
     window.addEventListener('mousemove', updateCanvasCoordinates);
@@ -458,8 +519,8 @@
       
       let props = savedProps;
       if (!props) {
-        const targetLeft = mouseXCanvas ? (mouseXCanvas - 50) : (Math.abs(panX) + 400);
-        const targetTop = mouseYCanvas ? (mouseYCanvas - 20) : (Math.abs(panY) + 100);
+        const targetLeft = mouseXCanvas ? (mouseXCanvas - 50) : (Math.abs(panX) / zoom + 400);
+        const targetTop = mouseYCanvas ? (mouseYCanvas - 20) : (Math.abs(panY) / zoom + 100);
         props = {
           width: `${customWidth}px`,
           height: `550px`,
@@ -509,7 +570,6 @@
 
               const viewport = page.getViewport({ scale: scale });
 
-              // Aplica o Device Pixel Ratio para telas de alta resolução
               const dpr = window.devicePixelRatio || 1;
               
               canvasEl.width = viewport.width * dpr;
@@ -595,8 +655,8 @@
         const cardsPerLine = Math.floor(1200 / (finalWidth + spacingX));
         const col = totalCards % cardsPerLine;
         const row = Math.floor(totalCards / cardsPerLine);
-        const startX = Math.abs(panX) + 320 + col * (finalWidth + spacingX);
-        const startY = Math.abs(panY) + 60 + row * (finalHeight + spacingY);
+        const startX = Math.abs(panX) / zoom + 320 + col * (finalWidth + spacingX);
+        const startY = Math.abs(panY) / zoom + 60 + row * (finalHeight + spacingY);
         card.style.left = `${startX}px`;
         card.style.top = `${startY}px`;
       }
@@ -655,8 +715,9 @@
               const target = event.target;
               const currentLeft = parseFloat(target.style.left) || 0;
               const currentTop = parseFloat(target.style.top) || 0;
-              target.style.left = `${currentLeft + event.dx}px`;
-              target.style.top = `${currentTop + event.dy}px`;
+              // Ajusta o movimento de arrastar baseando-se no zoom atual
+              target.style.left = `${currentLeft + event.dx / zoom}px`;
+              target.style.top = `${currentTop + event.dy / zoom}px`;
             },
             end() {
               document.body.classList.remove('dragging-active');
@@ -670,8 +731,11 @@
             start() { document.body.classList.add('dragging-active'); },
             move(event) {
               const target = event.target;
-              target.style.width = `${event.rect.width}px`;
-              target.style.height = `${event.rect.height}px`;
+              // Ajusta o redimensionamento baseado no nível de zoom
+              const newWidth = parseFloat(target.style.width) + event.edges.right * (event.dx / zoom);
+              const newHeight = parseFloat(target.style.height) + event.edges.bottom * (event.dy / zoom);
+              target.style.width = `${newWidth}px`;
+              target.style.height = `${newHeight}px`;
             },
             end() {
               document.body.classList.remove('dragging-active');
@@ -708,8 +772,8 @@
         const cards = document.querySelectorAll('.codex-card');
         const lastCard = cards[cards.length - 1];
         if (lastCard) {
-          lastCard.style.left = `${mouseXCanvas || (Math.abs(panX) + 350)}px`;
-          lastCard.style.top = `${mouseYCanvas || (Math.abs(panY) + 150)}px`;
+          lastCard.style.left = `${mouseXCanvas || (Math.abs(panX) / zoom + 350)}px`;
+          lastCard.style.top = `${mouseYCanvas || (Math.abs(panY) / zoom + 150)}px`;
           salvarEstadoNoStorage();
         }
       } else {
