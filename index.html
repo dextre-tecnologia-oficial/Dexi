@@ -282,7 +282,6 @@
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
 
-      // Ajusta o Pan para dar zoom apontando para o cursor do mouse
       panX = mouseX - (mouseX - panX) * (newZoom / zoom);
       panY = mouseY - (mouseY - panY) * (newZoom / zoom);
 
@@ -291,14 +290,13 @@
     }
     boardWrapper.addEventListener('wheel', handleWheel, { passive: false });
 
-    function changeZoom(delta) {
+    window.changeZoom = function(delta) {
       let newZoom = zoom + delta;
       newZoom = Math.max(0.15, Math.min(newZoom, 3));
       
       const width = window.innerWidth;
       const height = window.innerHeight;
       
-      // Ajusta o Pan baseado no centro da tela
       panX = width / 2 - (width / 2 - panX) * (newZoom / zoom);
       panY = height / 2 - (height / 2 - panY) * (newZoom / zoom);
       
@@ -306,7 +304,7 @@
       updateTransform();
     }
 
-    function resetZoom() {
+    window.resetZoom = function() {
       zoom = 1;
       panX = 0;
       panY = 0;
@@ -331,8 +329,6 @@
       const pageY = e.touches ? e.touches[0].pageY : e.pageY;
       panX = pageX - startX;
       panY = pageY - startY;
-      if (panX > 0) panX = 0;
-      if (panY > 0) panY = 0;
       updateTransform();
     }
 
@@ -596,7 +592,7 @@
       };
     }
 
-    function mudarPaginaCard(viewerId, delta) {
+    window.mudarPaginaCard = function(viewerId, delta) {
       const container = document.querySelector(`[data-viewerid="${viewerId}"]`);
       if (!container) return;
 
@@ -613,7 +609,7 @@
       renderizarPaginaVisualizador(viewerId, pdfId);
     }
 
-    function irParaPaginaCard(viewerId, valor) {
+    window.irParaPaginaCard = function(viewerId, valor) {
       const container = document.querySelector(`[data-viewerid="${viewerId}"]`);
       if (!container) return;
 
@@ -682,7 +678,7 @@
       if (!savedProps) salvarEstadoNoStorage();
     }
 
-    function excluirCard(button) {
+    window.excluirCard = function(button) {
       const card = button.closest('.codex-card');
       if (card) {
         const viewerEl = card.querySelector('[data-viewerid]');
@@ -715,7 +711,6 @@
               const target = event.target;
               const currentLeft = parseFloat(target.style.left) || 0;
               const currentTop = parseFloat(target.style.top) || 0;
-              // Ajusta o movimento de arrastar baseando-se no zoom atual
               target.style.left = `${currentLeft + event.dx / zoom}px`;
               target.style.top = `${currentTop + event.dy / zoom}px`;
             },
@@ -731,7 +726,6 @@
             start() { document.body.classList.add('dragging-active'); },
             move(event) {
               const target = event.target;
-              // Ajusta o redimensionamento baseado no nível de zoom
               const newWidth = parseFloat(target.style.width) + event.edges.right * (event.dx / zoom);
               const newHeight = parseFloat(target.style.height) + event.edges.bottom * (event.dy / zoom);
               target.style.width = `${newWidth}px`;
@@ -855,7 +849,7 @@
       }
     }
 
-    function limparQuadro() {
+    window.limparQuadro = function() {
       document.querySelectorAll('.codex-card').forEach(card => card.remove());
       localStorage.removeItem('dexi_codex_cards');
       if (db) {
@@ -871,13 +865,13 @@
       return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
     }
 
-    function openModal(title, contentHtml) {
+    window.openModal = function(title, contentHtml) {
       document.getElementById('modal-title').innerText = title;
       document.getElementById('modal-content').innerHTML = contentHtml;
       document.getElementById('preview-modal').classList.remove('hidden');
     }
 
-    function closeModal() {
+    window.closeModal = function() {
       document.getElementById('preview-modal').classList.add('hidden');
       document.getElementById('modal-content').innerHTML = '';
     }
