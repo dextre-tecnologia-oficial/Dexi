@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Dexi</title>
+  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+  <meta name="description" content="Codex de conhecimentos intuitivos, linguísticos e científicos.">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            gold: {
+              DEFAULT: '#c9a227',
+              light: '#f5e6a8',
+              glow: 'rgba(201, 162, 39, 0.25)',
+            }
+          },
+          backgroundImage: {
+            'grid-light': 'linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px)',
+            'grid-dark': 'linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px)',
+          }
+        }
+      }
+    }
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+  </script>
+
+  <style>
+    ::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
+    }
+
+    html,
+    body {
+      scrollbar-width: none !important;
+      -ms-overflow-style: none !important;
+      overflow: hidden !important;
+      position: fixed;
+      width: 100%;
+      height: 100%;
+    }
+
+    .resize-handle {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 24px;
+      height: 24px;
+      cursor: nwse-resize;
+      background: linear-gradient(135deg, transparent 50%, rgba(100, 116, 139, 0.4) 50%);
+      border-bottom-right-radius: 1rem;
+      z-index: 30;
+    }
+
+    .dark .resize-handle {
+      background: linear-gradient(135deg, transparent 50%, rgba(148, 163, 184, 0.4) 50%);
+    }
+
+    .codex-card {
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    aside {
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #board-wrapper {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+      cursor: grab;
+    }
+
+    #board-wrapper:active {
+      cursor: grabbing;
+    }
+
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 5000px;
+      height: 5000px;
+      transform-origin: 0 0;
+    }
+
+    .pdf-canvas-container {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+  </style>
+</head>
+
+<body
+  class="bg-[#f8f7f4] dark:bg-[#0f172a] text-[#1e293b] dark:text-[#f8f7f4] min-h-screen overflow-hidden font-sans transition-colors duration-200 relative">
+
+  <input type="file" id="folder-selector" multiple class="hidden"
+    onchange="handleFolderSelection(this.files)">
+
+  <button id="trigger-left" onclick="toggleMenu(true)"
+    class="fixed left-0 top-1/2 -translate-y-1/2 z-40 bg-amber-500 hover:bg-amber-600 text-white p-3 rounded-r-xl shadow-lg transition-all font-bold hidden">&gt;</button>
+
+  <div class="flex h-screen w-screen relative overflow-hidden">
+
+    <aside id="sidebar"
+      class="fixed top-0 left-0 h-full w-[280px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-6 border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between z-50 overflow-y-auto transition-colors duration-200 shadow-2xl transform none">
+      <div>
+        <div class="flex justify-between items-center mb-2">
+          <button onclick="toggleMenu(false)"
+            class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-rose-500/20 hover:text-rose-500 transition-all text-slate-500 text-xs font-bold">
+            &lt;
+          </button>
+          <button onclick="toggleTheme()"
+            class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-slate-700 dark:text-slate-300 flex items-center justify-center text-sm font-medium">
+            <span id="theme-icon-sun" class="hidden dark:inline">☀️</span>
+            <span id="theme-icon-moon" class="inline dark:hidden">🌙</span>
+          </button>
+        </div>
+
+        <div class="text-center mb-6">
+          <img src="Dexi.png" alt="DEXI" onerror="this.src='https://placehold.co/88x88?text=DEXI'"
+            class="w-[88px] h-auto mx-auto drop-shadow-[0_8px_18px_rgba(201,162,39,0.25)]">
+          <h1 class="text-2xl font-extrabold tracking-wider mt-3 mb-0.5 text-slate-900 dark:text-white">Dexi</h1>
+          <p class="text-[0.72rem] tracking-[0.18em] uppercase text-slate-500 dark:text-slate-400 m-0">Codex</p>
+        </div>
+
+        <div class="flex flex-col gap-2 mb-6">
+          <button onclick="triggerFolderSelector()"
+            class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-4 rounded-xl shadow transition-all flex items-center justify-center gap-2 text-sm">
+            Sincronizar
+          </button>
+          <button onclick="colarLinkManual()"
+            class="w-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold py-2.5 px-4 rounded-xl shadow border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center gap-2 text-sm">
+            Colar
+          </button>
+        </div>
+
+        <div class="mb-4">
+          <button onclick="limparQuadro()"
+            class="w-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-medium py-2 px-4 rounded-xl border border-rose-500/20 transition-all text-xs text-center flex items-center justify-center gap-2">
+            Limpar
+          </button>
+        </div>
+      </div>
+
+      <div
+        class="text-[0.78rem] text-slate-500 dark:text-slate-400 leading-relaxed p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 mt-4">
+        <strong class="text-slate-700 dark:text-slate-200">Como usar:</strong><br>
+        1. Clique/toque no fundo vazio e arraste para se movimentar pelo quadro em qualquer direção;<br>
+        <br><br>
+        2. Arraste arquivos ou links direto para a grade para criar novos cards;<br>
+        <br><br>
+        3. Clique em "Sincronizar" para fazer upload de alguma pasta local ou em nuvem para o quadro;
+        <br><br>
+        4. Pressione Ctrl + V ou use o botão "Colar" para adicionar links rápidos;<br>
+      </div>
+    </aside>
+
+    <div id="board-wrapper" class="bg-grid-light dark:bg-grid-dark transition-all duration-200"
+      style="background-size: 32px 32px;">
+      <div id="canvas-container">
+        <main class="w-full h-full relative select-none" id="canvas">
+        </main>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="preview-modal"
+    class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div
+      class="relative bg-white dark:bg-slate-900 border border-transparent dark:border-slate-700 rounded-2xl max-w-5xl w-full h-[90vh] flex flex-col shadow-2xl transition-all duration-200">
+      <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0">
+        <h3 id="modal-title" class="font-bold text-slate-800 dark:text-slate-200 truncate pr-4">Visualização</h3>
+        <button onclick="closeModal()"
+          class="text-slate-400 hover:text-rose-500 font-bold text-xl px-2 transition-colors">&times;</button>
+      </div>
+      <div id="modal-content"
+        class="p-1 flex-1 overflow-hidden bg-slate-100 dark:bg-slate-950 rounded-b-2xl flex flex-col"></div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const boardWrapper = document.getElementById('board-wrapper');
+    const canvasContainer = document.getElementById('canvas-container');
+    let localizedFiles = [];
+
+    let isPanning = false;
+    let startX = 0, startY = 0;
+    let panX = 0, panY = 0;
+
+    let mouseXCanvas = 200;
+    let mouseYCanvas = 200;
+
+    // --- INICIALIZAÇÃO DO INDEXEDDB ---
+    let db;
+    const dbRequest = indexedDB.open("DexiDatabase", 2);
+    dbRequest.onupgradeneeded = (e) => {
+      db = e.target.result;
+      if (!db.objectStoreNames.contains("pdfs")) {
+        db.createObjectStore("pdfs");
+      }
+      if (!db.objectStoreNames.contains("media")) {
+        db.createObjectStore("media");
+      }
+    };
+    dbRequest.onsuccess = (e) => {
+      db = e.target.result;
+      carregarEstadoDoStorage();
+    };
+    dbRequest.onerror = (e) => { console.error("Erro ao abrir IndexedDB", e); };
+
+    function guardarPdfNoDb(id, blob) {
+      if (!db) return;
+      const transaction = db.transaction(["pdfs"], "readwrite");
+      transaction.objectStore(["pdfs"]).put(blob, id);
+    }
+
+    function removerPdfDoDb(id) {
+      if (!db) return;
+      const transaction = db.transaction(["pdfs"], "readwrite");
+      transaction.objectStore(["pdfs"]).delete(id);
+    }
+
+    function guardarMediaNoDb(id, blob) {
+      if (!db) return;
+      const transaction = db.transaction(["media"], "readwrite");
+      transaction.objectStore(["media"]).put(blob, id);
+    }
+
+    function removerMediaDoDb(id) {
+      if (!db) return;
+      const transaction = db.transaction(["media"], "readwrite");
+      transaction.objectStore(["media"]).delete(id);
+    }
+
+    function startPan(e) {
+      if (e.target.closest('.codex-card') || e.target.closest('aside') || e.target.closest('button') || e.target.closest('input') || e.target.closest('a') || e.target.closest('canvas') || e.target.closest('embed')) {
+        isPanning = false;
+        return;
+      }
+      isPanning = true;
+      const pageX = e.touches ? e.touches[0].pageX : e.pageX;
+      const pageY = e.touches ? e.touches[0].pageY : e.pageY;
+      startX = pageX - panX;
+      startY = pageY - panY;
+    }
+
+    function doPan(e) {
+      if (!isPanning) return;
+      const pageX = e.touches ? e.touches[0].pageX : e.pageX;
+      const pageY = e.touches ? e.touches[0].pageY : e.pageY;
+      panX = pageX - startX;
+      panY = pageY - startY;
+      if (panX > 0) panX = 0;
+      if (panY > 0) panY = 0;
+      canvasContainer.style.transform = `translate(${panX}px, ${panY}px)`;
+      boardWrapper.style.backgroundPosition = `${panX}px ${panY}px`;
+    }
+
+    function endPan() { isPanning = false; }
+
+    boardWrapper.addEventListener('mousedown', startPan);
+    window.addEventListener('mousemove', doPan);
+    window.addEventListener('mouseup', endPan);
+    boardWrapper.addEventListener('touchstart', startPan, { passive: true });
+    window.addEventListener('touchmove', doPan, { passive: true });
+    window.addEventListener('touchend', endPan);
+
+    function updateCanvasCoordinates(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      if (clientX && clientY) {
+        mouseXCanvas = clientX - rect.left;
+        mouseYCanvas = clientY - rect.top;
+      }
+    }
+    window.addEventListener('mousemove', updateCanvasCoordinates);
+    window.addEventListener('touchmove', updateCanvasCoordinates, { passive: true });
+
+    function toggleMenu(show) {
+      const sidebar = document.getElementById('sidebar');
+      const triggerLeft = document.getElementById('trigger-left');
+      if (show) {
+        sidebar.style.transform = 'translateX(0)';
+        triggerLeft.classList.add('hidden');
+        localStorage.setItem('dexi_menu_visible', 'true');
+      } else {
+        sidebar.style.transform = 'translateX(-285px)';
+        triggerLeft.classList.remove('hidden');
+        localStorage.setItem('dexi_menu_visible', 'false');
+      }
+    }
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      } else {
+        html.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      }
+    }
+
+    if (localStorage.getItem('theme') === 'light') document.documentElement.classList.remove('dark');
+
+    function triggerFolderSelector() { document.getElementById('folder-selector').click(); }
+
+    async function handleFolderSelection(files) {
+      localizedFiles = Array.from(files);
+      if (localizedFiles.length === 0) return;
+      
+      for (const file of localizedFiles) {
+        if (file.size > 0 || file.type !== "") {
+          await processAndCreateCard(file);
+        }
+      }
+      document.getElementById('folder-selector').value = '';
+    }
+
+    const dropZone = boardWrapper;
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      dropZone.addEventListener(eventName, e => e.preventDefault(), false);
+    });
+    dropZone.addEventListener('dragover', () => dropZone.classList.add('bg-slate-200/40', 'dark:bg-slate-800/40'));
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('bg-slate-200/40', 'dark:bg-slate-800/40'));
+    dropZone.addEventListener('drop', (e) => {
+      dropZone.classList.remove('bg-slate-200/40', 'dark:bg-slate-800/40');
+      const linkData = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+      if (linkData && (linkData.startsWith('http://') || linkData.startsWith('https://'))) {
+        processLinkCard(linkData);
+        return;
+      }
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        Array.from(files).forEach(file => processAndCreateCard(file));
+      }
+    });
+
+    function processLinkCard(url, savedTag = '') {
+      let hostname = 'Link';
+      try { hostname = new URL(url).hostname; } catch (e) { }
+      const bodyHtml = `
+        <div class="p-4 text-center bg-slate-50 dark:bg-slate-950/40 h-full flex flex-col justify-between items-center gap-2">
+          <input type="text" value="${escapeHTML(savedTag)}" placeholder="Dar um nome/tag..." oninput="atualizarTagLink(this)" class="w-full text-xs font-medium px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:border-amber-500 text-slate-700 dark:text-slate-200 select-text">
+          <p class="text-[10px] text-slate-400 dark:text-slate-500 font-mono truncate w-full px-1" title="${url}">${url}</p>
+          <a href="${url}" target="_blank" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-xl shadow text-xs transition-all flex items-center justify-center gap-1">Visitar Link ↗</a>
+        </div>`;
+      createCard('LINK', hostname, bodyHtml, 280);
+    }
+
+    function atualizarTagLink(inputElement) {
+      inputElement.setAttribute('value', inputElement.value);
+      salvarEstadoNoStorage();
+    }
+
+    async function processAndCreateCard(file) {
+      const fileNameLower = file.name.toLowerCase();
+      const extension = file.name.includes('.') ? file.name.split('.').pop().toUpperCase() : 'ARQUIVO';
+      let bodyHtml = '';
+
+      if (fileNameLower.endsWith('.txt') || fileNameLower.endsWith('.md')) {
+        const text = await file.text();
+        bodyHtml = `<div class="p-4 text-sm h-full overflow-y-auto text-slate-700 dark:text-slate-300 font-mono bg-slate-50/50 dark:bg-slate-950/50 whitespace-pre-wrap">${escapeHTML(text)}</div>`;
+        createCard(extension, file.name, bodyHtml);
+      }
+      else if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(fileNameLower)) {
+        bodyHtml = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            resolve(`<div class="bg-slate-100 dark:bg-slate-950 overflow-hidden h-full flex items-center justify-center cursor-pointer" onclick="openModal('${file.name}', '<img src=\\'${e.target.result}\\' class=\\'max-w-full max-h-[75vh] mx-auto object-contain\\'>')">
+                        <img src="${e.target.result}" alt="${file.name}" class="w-full h-full object-contain">
+                      </div>`);
+          };
+          reader.readAsDataURL(file);
+        });
+        createCard(extension, file.name, bodyHtml, 320);
+      }
+      else if (/\.(mp4|webm|ogg|mov)$/i.test(fileNameLower)) {
+        const mediaId = "video_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+        guardarMediaNoDb(mediaId, file);
+        
+        const videoUrl = URL.createObjectURL(file);
+        bodyHtml = `<div class="w-full h-full bg-slate-950 flex items-center justify-center" data-mediasourceid="${mediaId}">
+                      <video src="${videoUrl}" controls class="w-full h-full object-contain pointer-events-auto"></video>
+                    </div>`;
+        createCard(extension, file.name, bodyHtml, 360);
+      }
+      else if (/\.(mp3|wav|ogg|m4a|flac)$/i.test(fileNameLower)) {
+        bodyHtml = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            resolve(`<div class="p-4 bg-slate-50 dark:bg-slate-950 h-full flex flex-col justify-center items-center gap-2">
+                        <span class="text-[2rem]">🎵</span>
+                        <audio src="${e.target.result}" controls class="w-full pointer-events-auto"></audio>
+                      </div>`);
+          };
+          reader.readAsDataURL(file);
+        });
+        createCard(extension, file.name, bodyHtml, 300);
+      }
+      else if (fileNameLower.endsWith('.pdf')) {
+        const pdfId = "pdf_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
+        guardarPdfNoDb(pdfId, file);
+        montarEGerarLeitorPdf(pdfId, file.name, 1);
+      }
+      else {
+        bodyHtml = `<div class="p-5 text-center bg-slate-50 dark:bg-slate-950/40 h-full flex flex-col justify-center items-center">
+                      <p class="text-xs text-slate-400 mb-2">Arquivo carregado na sessão.</p>
+                      <span class="text-xs font-mono text-slate-600 dark:text-slate-400 bg-slate-500/10 px-2 py-1 rounded border border-slate-500/20">${file.type || 'Binary/Data'}</span>
+                    </div>`;
+        createCard(extension, file.name, bodyHtml, 260);
+      }
+    }
+
+    function montarEGerarLeitorPdf(id, filename, paginaInicial = 1, savedProps = null) {
+      const viewerId = "view_" + id + "_" + Date.now();
+
+      const readerContentHtml = `
+        <div class="w-full h-full bg-slate-900 flex flex-col relative select-none" data-viewerid="${viewerId}" data-pdfsourceid="${id}" data-current-page="${paginaInicial}">
+          <div class="bg-slate-800 text-white px-3 py-1.5 flex justify-between items-center text-xs shrink-0 select-none">
+            <div class="flex items-center gap-1.5">
+              <button onclick="mudarPaginaCard('${viewerId}', -1)" class="bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded font-bold transition-all"><</button>
+              <button onclick="mudarPaginaCard('${viewerId}', 1)" class="bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded font-bold transition-all">></button>
+            </div>
+            <div class="flex items-center gap-1 font-mono text-[11px]">
+              <span>Pág:</span>
+              <input type="number" value="${paginaInicial}" min="1" onchange="irParaPaginaCard('${viewerId}', this.value)" 
+                class="page-input-card w-12 text-center font-bold text-amber-400 bg-slate-900 border border-slate-700 rounded py-0.5 focus:outline-none focus:border-amber-500 select-text pointer-events-auto">
+              <span>/ <span class="page-count-card">?</span></span>
+            </div>
+          </div>
+          <div class="flex-1 overflow-auto p-2 flex justify-center items-start bg-slate-950 pointer-events-auto">
+            <canvas class="pdf-viewer-canvas shadow-lg max-w-full h-auto"></canvas>
+          </div>
+        </div>`;
+
+      const customWidth = window.innerWidth > 800 ? 650 : 340;
+      
+      let props = savedProps;
+      if (!props) {
+        const targetLeft = mouseXCanvas ? (mouseXCanvas - 50) : (Math.abs(panX) + 400);
+        const targetTop = mouseYCanvas ? (mouseYCanvas - 20) : (Math.abs(panY) + 100);
+        props = {
+          width: `${customWidth}px`,
+          height: `550px`,
+          left: `${targetLeft}px`,
+          top: `${targetTop}px`
+         };
+      }
+
+      createCard('PDF', filename, readerContentHtml, customWidth, props);
+
+      setTimeout(() => {
+        renderizarPaginaVisualizador(viewerId, id);
+      }, 150);
+    }
+
+    function renderizarPaginaVisualizador(viewerId, pdfId) {
+      if (!db) return;
+      const container = document.querySelector(`[data-viewerid="${viewerId}"]`);
+      if (!container) return;
+
+      const transaction = db.transaction(["pdfs"], "readonly");
+      const request = transaction.objectStore(["pdfs"]).get(pdfId);
+
+      request.onsuccess = (e) => {
+        const blob = e.target.result;
+        if (!blob) return;
+
+        const fileReader = new FileReader();
+        fileReader.onload = function () {
+          const typedarray = new Uint8Array(this.result);
+
+          pdfjsLib.getDocument(typedarray).promise.then(pdf => {
+            const pageNum = parseInt(container.dataset.currentPage) || 1;
+            container.querySelector('.page-count-card').innerText = pdf.numPages;
+
+            pdf.getPage(pageNum).then(page => {
+              const canvasEl = container.querySelector('.pdf-viewer-canvas');
+              if (!canvasEl) return;
+
+              const context = canvasEl.getContext('2d');
+              
+              const cardBodyWidth = canvasEl.parentElement.clientWidth || 400;
+              const unscaledViewport = page.getViewport({ scale: 1.0 });
+              
+              let scale = (cardBodyWidth - 20) / unscaledViewport.width;
+              if (scale > 2.0) scale = 2.0; 
+
+              const viewport = page.getViewport({ scale: scale });
+
+              // Aplica o Device Pixel Ratio para telas de alta resolução
+              const dpr = window.devicePixelRatio || 1;
+              
+              canvasEl.width = viewport.width * dpr;
+              canvasEl.height = viewport.height * dpr;
+
+              canvasEl.style.width = `${viewport.width}px`;
+              canvasEl.style.height = `${viewport.height}px`;
+
+              context.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+              const renderContext = {
+                canvasContext: context,
+                viewport: viewport
+              };
+              page.render(renderContext).promise.then(() => {
+                const inputEl = container.querySelector('.page-input-card');
+                if (inputEl) inputEl.value = pageNum;
+                salvarEstadoNoStorage();
+              });
+            });
+          }).catch(err => console.error("Erro ao renderizar página expandida:", err));
+        };
+        fileReader.readAsArrayBuffer(blob);
+      };
+    }
+
+    function mudarPaginaCard(viewerId, delta) {
+      const container = document.querySelector(`[data-viewerid="${viewerId}"]`);
+      if (!container) return;
+
+      let currentPage = parseInt(container.dataset.currentPage) || 1;
+      const totalPages = parseInt(container.querySelector('.page-count-card').innerText) || 1;
+
+      currentPage += delta;
+      if (currentPage < 1) currentPage = 1;
+      if (currentPage > totalPages) currentPage = totalPages;
+
+      container.dataset.currentPage = currentPage;
+      const pdfId = container.dataset.pdfsourceid;
+
+      renderizarPaginaVisualizador(viewerId, pdfId);
+    }
+
+    function irParaPaginaCard(viewerId, valor) {
+      const container = document.querySelector(`[data-viewerid="${viewerId}"]`);
+      if (!container) return;
+
+      const totalPages = parseInt(container.querySelector('.page-count-card').innerText) || 1;
+      let targetPage = parseInt(valor) || 1;
+
+      if (targetPage < 1) targetPage = 1;
+      if (targetPage > totalPages) targetPage = totalPages;
+
+      container.dataset.currentPage = targetPage;
+      
+      const inputEl = container.querySelector('.page-input-card');
+      if (inputEl) inputEl.value = targetPage;
+
+      const pdfId = container.dataset.pdfsourceid;
+      renderizarPaginaVisualizador(viewerId, pdfId);
+    }
+
+    function createCard(fileType, filename, bodyContent, customWidth = 280, savedProps = null) {
+      const card = document.createElement('div');
+      card.className = `codex-card absolute bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-lg dark:shadow-2xl z-10 hover:border-slate-400 dark:hover:border-slate-600 overflow-hidden flex flex-col transform-none`;
+
+      card.dataset.filetype = fileType;
+      card.dataset.filename = filename;
+
+      const finalWidth = customWidth;
+      const finalHeight = savedProps && savedProps.height ? parseFloat(savedProps.height) : 260;
+
+      if (savedProps) {
+        card.style.width = savedProps.width;
+        card.style.height = savedProps.height;
+        card.style.left = savedProps.left;
+        card.style.top = savedProps.top;
+      } else {
+        card.style.width = `${finalWidth}px`;
+        card.style.height = `${finalHeight}px`;
+        const totalCards = document.querySelectorAll('.codex-card').length;
+        const spacingX = 24; const spacingY = 24;
+        const cardsPerLine = Math.floor(1200 / (finalWidth + spacingX));
+        const col = totalCards % cardsPerLine;
+        const row = Math.floor(totalCards / cardsPerLine);
+        const startX = Math.abs(panX) + 320 + col * (finalWidth + spacingX);
+        const startY = Math.abs(panY) + 60 + row * (finalHeight + spacingY);
+        card.style.left = `${startX}px`;
+        card.style.top = `${startY}px`;
+      }
+
+      card.style.minWidth = `200px`;
+      card.style.minHeight = `140px`;
+
+      card.innerHTML = `
+        <div class="card-header px-4 py-3 border-b border-slate-100 dark:border-slate-800/60 flex justify-between items-center font-bold text-xs rounded-t-2xl select-none shrink-0 cursor-move">
+          <div class="flex items-center gap-2 truncate max-w-[85%] pointer-events-none">
+            <span class="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-500 text-[10px] tracking-wide uppercase shrink-0">${fileType}</span>
+            <span class="text-slate-400 dark:text-slate-500 truncate" title="${filename}">${filename}</span>
+          </div>
+          <button onclick="excluirCard(this)" class="text-slate-400 hover:text-rose-500 font-bold text-sm px-1.5 py-0.5 rounded transition-colors" title="Excluir Card">&times;</button>
+        </div>
+        <div class="flex-1 overflow-hidden rounded-b-2xl card-body-holder">
+          ${bodyContent}
+        </div>
+        <div class="resize-handle"></div>`;
+
+      canvas.appendChild(card);
+      applyInteract(card);
+      if (!savedProps) salvarEstadoNoStorage();
+    }
+
+    function excluirCard(button) {
+      const card = button.closest('.codex-card');
+      if (card) {
+        const viewerEl = card.querySelector('[data-viewerid]');
+        if (viewerEl && viewerEl.dataset.pdfsourceid) {
+          removerPdfDoDb(viewerEl.dataset.pdfsourceid);
+        }
+        
+        const videoEl = card.querySelector('[data-mediasourceid]');
+        if (videoEl && videoEl.dataset.mediasourceid) {
+          removerMediaDoDb(videoEl.dataset.mediasourceid);
+        }
+
+        card.remove();
+        salvarEstadoNoStorage();
+      }
+    }
+
+    function applyInteract(element) {
+      interact(element)
+        .draggable({
+          allowFrom: '.card-header',
+          inertia: false,
+          listeners: {
+            start(event) {
+              document.querySelectorAll('.codex-card').forEach(c => c.style.zIndex = 10);
+              event.target.style.zIndex = 50;
+              document.body.classList.add('dragging-active');
+            },
+            move(event) {
+              const target = event.target;
+              const currentLeft = parseFloat(target.style.left) || 0;
+              const currentTop = parseFloat(target.style.top) || 0;
+              target.style.left = `${currentLeft + event.dx}px`;
+              target.style.top = `${currentTop + event.dy}px`;
+            },
+            end() {
+              document.body.classList.remove('dragging-active');
+              salvarEstadoNoStorage();
+            }
+          }
+        })
+        .resizable({
+          edges: { right: true, bottom: true },
+          listeners: {
+            start() { document.body.classList.add('dragging-active'); },
+            move(event) {
+              const target = event.target;
+              target.style.width = `${event.rect.width}px`;
+              target.style.height = `${event.rect.height}px`;
+            },
+            end() {
+              document.body.classList.remove('dragging-active');
+              salvarEstadoNoStorage();
+            }
+          },
+          modifiers: [
+            interact.modifiers.restrictSize({ min: { width: 200, height: 140 } })
+          ]
+        });
+    }
+
+    async function colarLinkManual() {
+      try {
+        const pastedText = await navigator.clipboard.readText();
+        tratarLinkColado(pastedText.trim());
+      } catch (err) {
+        const urlManual = prompt("Cole ou digite a URL do link aqui:");
+        if (urlManual) tratarLinkColado(urlManual.trim());
+      }
+    }
+
+    function tratarLinkColado(pastedText) {
+      if (pastedText.startsWith('http://') || pastedText.startsWith('https://')) {
+        let hostname = 'Link';
+        try { hostname = new URL(pastedText).hostname; } catch (err) { }
+        const bodyHtml = `
+          <div class="p-4 text-center bg-slate-50 dark:bg-slate-950/40 h-full flex flex-col justify-between items-center gap-2">
+            <input type="text" value="" placeholder="Dar um nome/tag..." oninput="atualizarTagLink(this)" class="w-full text-xs font-medium px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:border-amber-500 text-slate-700 dark:text-slate-200 select-text">
+            <p class="text-[10px] text-slate-400 dark:text-slate-500 font-mono truncate w-full px-1" title="${pastedText}">${pastedText}</p>
+            <a href="${pastedText}" target="_blank" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-xl shadow text-xs transition-all flex items-center justify-center gap-1">Visitar Link ↗</a>
+          </div>`;
+        createCard('LINK', hostname, bodyHtml, 280);
+        const cards = document.querySelectorAll('.codex-card');
+        const lastCard = cards[cards.length - 1];
+        if (lastCard) {
+          lastCard.style.left = `${mouseXCanvas || (Math.abs(panX) + 350)}px`;
+          lastCard.style.top = `${mouseYCanvas || (Math.abs(panY) + 150)}px`;
+          salvarEstadoNoStorage();
+        }
+      } else {
+        alert("Link inválido.");
+      }
+    }
+
+    function salvarEstadoNoStorage() {
+      const cardsData = [];
+      document.querySelectorAll('.codex-card').forEach(card => {
+        const inputTag = card.querySelector('input[type="text"]');
+        if (inputTag) inputTag.setAttribute('value', inputTag.value);
+
+        const viewerEl = card.querySelector('[data-viewerid]');
+        const videoEl = card.querySelector('[data-mediasourceid]');
+        let savedCurrentPage = 1;
+        let savedPdfSourceId = "";
+        let savedMediaSourceId = "";
+
+        if (viewerEl) {
+          savedCurrentPage = parseInt(viewerEl.dataset.currentPage) || 1;
+          savedPdfSourceId = viewerEl.dataset.pdfsourceid || "";
+        }
+        if (videoEl) {
+          savedMediaSourceId = videoEl.dataset.mediasourceid || "";
+        }
+
+        cardsData.push({
+          filetype: card.dataset.filetype,
+          filename: card.dataset.filename,
+          width: card.style.width,
+          height: card.style.height,
+          left: card.style.left,
+          top: card.style.top,
+          currentPage: savedCurrentPage,
+          pdfSourceId: savedPdfSourceId,
+          mediaSourceId: savedMediaSourceId,
+          bodyContent: (viewerEl || videoEl) ? "" : card.querySelector('.card-body-holder').innerHTML 
+        });
+      });
+      localStorage.setItem('dexi_codex_cards', JSON.stringify(cardsData));
+    }
+
+    function carregarEstadoDoStorage() {
+      const rawData = localStorage.getItem('dexi_codex_cards');
+      const menuVisible = localStorage.getItem('dexi_menu_visible');
+      toggleMenu(menuVisible !== 'false');
+
+      if (!rawData) return;
+      try {
+        const cardsData = JSON.parse(rawData);
+        cardsData.forEach(c => {
+          if ((c.filetype === 'PDF' || c.filetype === 'LEITOR PDF') && c.pdfSourceId) {
+            montarEGerarLeitorPdf(c.pdfSourceId, c.filename, c.currentPage, {
+              width: c.width, height: c.height, left: c.left, top: c.top
+            });
+          } else if (c.mediaSourceId) {
+            const transaction = db.transaction(["media"], "readonly");
+            const request = transaction.objectStore(["media"]).get(c.mediaSourceId);
+            request.onsuccess = (e) => {
+              const blob = e.target.result;
+              if (!blob) return;
+              const videoUrl = URL.createObjectURL(blob);
+              const bodyHtml = `<div class="w-full h-full bg-slate-950 flex items-center justify-center" data-mediasourceid="${c.mediaSourceId}">
+                                  <video src="${videoUrl}" controls class="w-full h-full object-contain pointer-events-auto"></video>
+                                </div>`;
+              createCard(c.filetype, c.filename, bodyHtml, 360, {
+                width: c.width, height: c.height, left: c.left, top: c.top
+              });
+            };
+          } else {
+            createCard(c.filetype, c.filename, c.bodyContent, 280, {
+              width: c.width, height: c.height, left: c.left, top: c.top
+            });
+          }
+        });
+      } catch (e) {
+        console.error("Erro ao carregar dados", e);
+      }
+    }
+
+    function limparQuadro() {
+      document.querySelectorAll('.codex-card').forEach(card => card.remove());
+      localStorage.removeItem('dexi_codex_cards');
+      if (db) {
+        const transaction = db.transaction(["pdfs"], "readwrite");
+        transaction.objectStore(["pdfs"]).clear();
+        
+        const mediaTransaction = db.transaction(["media"], "readwrite");
+        mediaTransaction.objectStore(["media"]).clear();
+      }
+    }
+
+    function escapeHTML(str) {
+      return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+    }
+
+    function openModal(title, contentHtml) {
+      document.getElementById('modal-title').innerText = title;
+      document.getElementById('modal-content').innerHTML = contentHtml;
+      document.getElementById('preview-modal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('preview-modal').classList.add('hidden');
+      document.getElementById('modal-content').innerHTML = '';
+    }
+
+    document.getElementById('preview-modal').addEventListener('click', function (e) {
+      if (e.target === this) closeModal();
+    });
+
+    function endAllInteractions() {
+      isPanning = false;
+      document.body.classList.remove('dragging-active');
+      if (typeof interact !== 'undefined' && interact.currentInteractions) {
+        interact.currentInteractions.forEach(interaction => {
+          if (interaction.interacting()) interaction.end();
+        });
+      }
+    }
+    window.addEventListener('mouseup', endAllInteractions);
+    window.addEventListener('touchend', endAllInteractions);
+
+    window.addEventListener('paste', async (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      const pastedText = (e.clipboardData || window.clipboardData).getData('text').trim();
+      tratarLinkColado(pastedText);
+    });
+  </script>
+</body>
+
+</html>
