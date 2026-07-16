@@ -1,0 +1,104 @@
+
+    /* Oculta as barras de rolagem nativas para um visual mais limpo */
+    ::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
+    }
+
+    html, body {
+      scrollbar-width: none !important;
+      -ms-overflow-style: none !important;
+      overflow: hidden !important;
+      position: fixed;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Estilo da alça de redimensionamento no canto inferior direito dos cards */
+    .resize-handle {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 24px;
+      height: 24px;
+      cursor: nwse-resize;
+      background: linear-gradient(135deg, transparent 50%, rgba(100, 116, 139, 0.4) 50%);
+      border-bottom-right-radius: 1rem;
+      z-index: 30;
+    }
+
+    .dark .resize-handle {
+      background: linear-gradient(135deg, transparent 50%, rgba(148, 163, 184, 0.4) 50%);
+    }
+
+    /* Impede que o texto seja selecionado ao arrastar os cards */
+    .codex-card {
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+
+    /* ESTILO PARA SUPORTE A TELA CHEIA EM NOTAS */
+    .codex-card.card-fullscreen {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100dvh !important; /* dvh corrige bugs de altura em telas mobile */
+      z-index: 80 !important;
+      transform: none !important; /* Reseta posições de zoom/pan */
+      border-radius: 0 !important;
+      max-width: none !important;
+      max-height: none !important;
+    }
+
+    .codex-card.card-fullscreen .resize-handle {
+      display: none !important; /* Esconde a alça ao expandir */
+    }
+
+    .codex-card.card-fullscreen .card-header {
+      cursor: default !important; /* Remove o cursor de "arrastar" */
+    }
+
+    /* Transição suave do menu lateral */
+    aside {
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Container principal de navegação do quadro */
+    #board-wrapper {
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      position: relative;
+      cursor: grab;
+    }
+
+    #board-wrapper:active {
+      cursor: grabbing; /* Cursor "mão fechada" ao arrastar o quadro */
+    }
+
+    /* O plano infinito onde os cards são colocados */
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 5000px;
+      height: 5000px;
+      transform-origin: 0 0;
+    }
+
+    .pdf-canvas-container {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    /* Desativa interação do iframe para não atrapalhar o desenho/arraste */
+    .drawing-mode iframe {
+      pointer-events: none !important;
+    }

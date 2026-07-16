@@ -6,13 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Dexi</title>
   <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
-  <meta name="description" content="Codex de conhecimentos intuitivos, linguísticos e científicos.">
+  <meta name="description" content="Seu Codex de Arquivos, Links e Notas">
+  
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
     tailwind.config = {
-      darkMode: 'class',
+      darkMode: 'class', // Permite alternar o tema via classe no <html>
       theme: {
         extend: {
           colors: {
@@ -22,6 +24,7 @@
               glow: 'rgba(201, 162, 39, 0.25)',
             }
           },
+          // Fundo de grade para o quadro (estilo "caderno pontilhado/malha")
           backgroundImage: {
             'grid-light': 'linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px)',
             'grid-dark': 'linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px)',
@@ -29,209 +32,165 @@
         }
       }
     }
+    // Configuração do "worker" (processamento em segundo plano) do PDF.js
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
   </script>
-
-  <style>
-    ::-webkit-scrollbar {
-      display: none !important;
-      width: 0 !important;
-      height: 0 !important;
-    }
-
-    html,
-    body {
-      scrollbar-width: none !important;
-      -ms-overflow-style: none !important;
-      overflow: hidden !important;
-      position: fixed;
-      width: 100%;
-      height: 100%;
-    }
-
-    .resize-handle {
-      position: absolute;
-      right: 0;
-      bottom: 0;
-      width: 24px;
-      height: 24px;
-      cursor: nwse-resize;
-      background: linear-gradient(135deg, transparent 50%, rgba(100, 116, 139, 0.4) 50%);
-      border-bottom-right-radius: 1rem;
-      z-index: 30;
-    }
-
-    .dark .resize-handle {
-      background: linear-gradient(135deg, transparent 50%, rgba(148, 163, 184, 0.4) 50%);
-    }
-
-    .codex-card {
-      user-select: none;
-      -webkit-user-select: none;
-      touch-action: none;
-    }
-
-    aside {
-      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    #board-wrapper {
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-      position: relative;
-      cursor: grab;
-    }
-
-    #board-wrapper:active {
-      cursor: grabbing;
-    }
-
-    #canvas-container {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 5000px;
-      height: 5000px;
-      transform-origin: 0 0;
-    }
-
-    .pdf-canvas-container {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-    }
-  </style>
+  <link rel="stylesheet" href="style.css">
+ 
 </head>
 
-<body
-  class="bg-[#f8f7f4] dark:bg-[#0f172a] text-[#1e293b] dark:text-[#f8f7f4] min-h-screen overflow-hidden font-sans transition-colors duration-200 relative">
+<body class="bg-[#f8f7f4] dark:bg-[#0f172a] text-[#1e293b] dark:text-[#f8f7f4] min-h-screen overflow-hidden font-sans transition-colors duration-200 relative">
 
-  <input type="file" id="folder-selector" multiple class="hidden"
-    onchange="handleFolderSelection(this.files)">
+  <input type="file" id="folder-selector" multiple class="hidden" onchange="handleFolderSelection(this.files)">
 
-  <button id="trigger-left" onclick="toggleMenu(true)"
-    class="fixed left-0 top-1/2 -translate-y-1/2 z-40 bg-amber-500 hover:bg-amber-600 text-white p-3 rounded-r-xl shadow-lg transition-all font-bold hidden">&gt;</button>
+  <button id="trigger-left" onclick="toggleMenu(true)" class="fixed left-0 top-1/2 -translate-y-1/2 z-40 bg-amber-500 hover:bg-amber-600 text-white p-3 rounded-r-xl shadow-lg transition-all font-bold hidden">&gt;</button>
 
-  <!-- Controles de Zoom Fluido -->
-  <div class="fixed bottom-6 right-6 z-40 flex flex-col gap-2 bg-white/80 dark:bg-slate-900/80 backdrop-blur border border-slate-200 dark:border-slate-800 p-2 rounded-2xl shadow-xl">
-    <button onclick="changeZoom(0.1)" class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-white transition-all font-bold text-lg flex items-center justify-center">+</button>
-    <button onclick="resetZoom()" id="zoom-indicator" class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all font-mono text-[10px] font-bold flex items-center justify-center">100%</button>
-    <button onclick="changeZoom(-0.1)" class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-white transition-all font-bold text-lg flex items-center justify-center">-</button>
+  <div id="selection-toolbar" class="fixed top-2 sm:top-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 backdrop-blur border border-slate-800 text-white px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl shadow-2xl flex flex-wrap items-center justify-center gap-1.5 sm:gap-4 transition-all duration-200 transform scale-95 opacity-0 pointer-events-none w-[95vw] sm:w-auto max-w-xl">
+    <span id="selection-count" class="text-[10px] sm:text-xs font-mono font-bold text-amber-400 whitespace-nowrap">0 selecionados</span>
+    <div class="hidden sm:block w-px h-4 bg-slate-700"></div>
+    <button onclick="agruparSelecionados()" class="text-[10px] sm:text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl font-bold transition-all shadow-sm whitespace-nowrap">Agrupar</button>
+    <button onclick="desagruparSelecionados()" class="text-[10px] sm:text-xs bg-slate-700 hover:bg-slate-600 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl font-bold transition-all shadow-sm whitespace-nowrap">Desagrupar</button>
+    <button onclick="excluirSelecionados()" class="text-[10px] sm:text-xs bg-rose-600 hover:bg-rose-700 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg sm:rounded-xl font-bold transition-all shadow-sm whitespace-nowrap">Excluir</button>
+  </div>
+
+  <div class="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2">
+    
+    <button onclick="toggleFloatingTools()" id="floating-toggle-btn" class="w-10 h-10 rounded-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all font-bold text-sm flex items-center justify-center shadow-xl text-slate-500 dark:text-slate-400 z-50" title="Ocultar Ferramentas">▼</button>
+
+    <div id="floating-tools-panel" class="flex flex-col gap-2 bg-white/80 dark:bg-slate-900/80 backdrop-blur border border-slate-200 dark:border-slate-800 p-2 rounded-2xl shadow-xl transition-all duration-300 transform origin-bottom">
+      
+      
+  
+      <div class="w-8 h-px bg-slate-200 dark:bg-slate-700 mx-auto my-1"></div> <button id="multi-select-toggle" onclick="toggleMultiSelectMode()" class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all font-bold text-lg flex items-center justify-center" title="Modo de multiseleção">⊛</button>
+      <button id="pan-mode-toggle" onclick="togglePanMode()" class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all font-bold text-lg flex items-center justify-center" title="Modo Mover Quadro">⊹</button>
+      <button onclick="changeZoom(0.1)" class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-white transition-all font-bold text-lg flex items-center justify-center">+</button>
+      <button onclick="resetZoom()" id="zoom-indicator" class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all font-mono text-[10px] font-bold flex items-center justify-center">100%</button>
+      <button onclick="changeZoom(-0.1)" class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-amber-500 hover:text-white transition-all font-bold text-lg flex items-center justify-center">-</button>
+    </div>
   </div>
 
   <div class="flex h-screen w-screen relative overflow-hidden">
 
-    <aside id="sidebar"
-      class="fixed top-0 left-0 h-full w-[280px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-6 border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between z-50 overflow-y-auto transition-colors duration-200 shadow-2xl transform none">
+    <aside id="sidebar" class="fixed top-0 left-0 h-full w-[280px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-md p-6 border-r border-slate-200 dark:border-slate-800 flex flex-col justify-between z-50 overflow-y-auto transition-colors duration-200 shadow-2xl transform none">
       <div>
         <div class="flex justify-between items-center mb-2">
-          <button onclick="toggleMenu(false)"
-            class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-rose-500/20 hover:text-rose-500 transition-all text-slate-500 text-xs font-bold">
-            &lt;
-          </button>
-          <button onclick="toggleTheme()"
-            class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-slate-700 dark:text-slate-300 flex items-center justify-center text-sm font-medium">
+          <button onclick="toggleMenu(false)" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-rose-500/20 hover:text-rose-500 transition-all text-slate-500 text-xs font-bold">&lt;</button>
+          <button onclick="toggleTheme()" class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-slate-700 dark:text-slate-300 flex items-center justify-center text-sm font-medium">
             <span id="theme-icon-sun" class="hidden dark:inline">☀️</span>
             <span id="theme-icon-moon" class="inline dark:hidden">🌙</span>
           </button>
         </div>
 
         <div class="text-center mb-6">
-          <img src="Dexi.png" alt="DEXI" onerror="this.src='https://placehold.co/88x88?text=DEXI'"
-            class="w-[88px] h-auto mx-auto drop-shadow-[0_8px_18px_rgba(201,162,39,0.25)]">
+          <img src="Dexi.png" alt="DEXI" onerror="this.src='https://placehold.co/88x88?text=DEXI'" class="w-[88px] h-auto mx-auto drop-shadow-[0_8px_18px_rgba(201, 162, 39, 0.25)]">
           <h1 class="text-2xl font-extrabold tracking-wider mt-3 mb-0.5 text-slate-900 dark:text-white">Dexi</h1>
           <p class="text-[0.72rem] tracking-[0.18em] uppercase text-slate-500 dark:text-slate-400 m-0">Codex</p>
         </div>
 
         <div class="flex flex-col gap-2 mb-6">
-          <button onclick="triggerFolderSelector()"
-            class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 px-4 rounded-xl shadow transition-all flex items-center justify-center gap-2 text-sm">
-            Sincronizar
-          </button>
-          <button onclick="colarLinkManual()"
-            class="w-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold py-2.5 px-4 rounded-xl shadow border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center gap-2 text-sm">
-            Colar
-          </button>
+          <button onclick="triggerFolderSelector()" class="w-full bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 font-medium py-2 px-4 rounded-xl border border-green-500/20 transition-all text-xs text-center flex items-center justify-center gap-2">Sincronizar</button>
+          <button onclick="colarLinkManual()" class="w-full bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-medium py-2 px-4 rounded-xl border border-blue-500/20 transition-all text-xs text-center flex items-center justify-center gap-2">Colar</button>
+          <button onclick="abrirModalNota()" class="w-full bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 font-medium py-2 px-4 rounded-xl border border-purple-500/20 transition-all text-xs text-center flex items-center justify-center gap-2">Notar</button>
         </div>
 
         <div class="mb-4">
-          <button onclick="limparQuadro()"
-            class="w-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-medium py-2 px-4 rounded-xl border border-rose-500/20 transition-all text-xs text-center flex items-center justify-center gap-2">
-            Limpar
-          </button>
+          <button onclick="limparQuadro()" class="w-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-medium py-2 px-4 rounded-xl border border-rose-500/20 transition-all text-xs text-center flex items-center justify-center gap-2">Limpar</button>
         </div>
       </div>
 
-      <div
-        class="text-[0.78rem] text-slate-500 dark:text-slate-400 leading-relaxed p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-dashed border-slate-300 dark:border-slate-700 mt-4">
-        <strong class="text-slate-700 dark:text-slate-200">Como usar:</strong><br>
-        1. Clique/toque no fundo vazio e arraste para se movimentar pelo quadro;<br>
-        <br>
-        2. Use a **roda do mouse** ou os botões no canto inferior direito para dar **Zoom**;<br>
-        <br>
-        3. Arraste arquivos ou links direto para a grade para criar novos cards;<br>
-        <br>
-        4. Clique em "Sincronizar" para fazer upload de alguma pasta local ou em nuvem;<br>
-      </div>
+      <a href="https://github.com/MarcosDAnton/Dexi" target="_blank" rel="noopener noreferrer" class="absolute bottom-4 left-4 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-lg shadow-slate-400/20 transition-transform duration-200 hover:scale-105 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Abrir GitHub">
+        <img src="https://uxwing.com/wp-content/themes/uxwing/download/brands-and-social-media/github-white-icon.png" class="w-6 h-6" alt="GitHub">
+      </a>
     </aside>
 
-    <div id="board-wrapper" class="bg-grid-light dark:bg-grid-dark transition-all duration-200"
-      style="background-size: 32px 32px;">
+    <div id="board-wrapper" class="bg-grid-light dark:bg-grid-dark transition-all duration-200" style="background-size: 32px 32px;">
       <div id="canvas-container">
-        <main class="w-full h-full relative select-none" id="canvas">
-        </main>
+        <main class="w-full h-full relative select-none" id="canvas"></main>
       </div>
     </div>
-
   </div>
 
-  <div id="preview-modal"
-    class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-    <div
-      class="relative bg-white dark:bg-slate-900 border border-transparent dark:border-slate-700 rounded-2xl max-w-5xl w-full h-[90vh] flex flex-col shadow-2xl transition-all duration-200">
+  <div id="preview-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div class="relative bg-white dark:bg-slate-900 border border-transparent dark:border-slate-700 rounded-2xl max-w-5xl w-full h-[90vh] flex flex-col shadow-2xl transition-all duration-200">
       <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center shrink-0">
         <h3 id="modal-title" class="font-bold text-slate-800 dark:text-slate-200 truncate pr-4">Visualização</h3>
-        <button onclick="closeModal()"
-          class="text-slate-400 hover:text-rose-500 font-bold text-xl px-2 transition-colors">&times;</button>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-rose-500 font-bold text-xl px-2 transition-colors">&times;</button>
       </div>
-      <div id="modal-content"
-        class="p-1 flex-1 overflow-hidden bg-slate-100 dark:bg-slate-950 rounded-b-2xl flex flex-col"></div>
+      <div id="modal-content" class="p-1 flex-1 overflow-hidden bg-slate-100 dark:bg-slate-950 rounded-b-2xl flex flex-col"></div>
+    </div>
+  </div>
+
+  <div id="paper-select-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div class="relative bg-white dark:bg-slate-900 border border-transparent dark:border-slate-700 rounded-2xl w-full max-w-sm flex flex-col shadow-2xl transition-all duration-200 overflow-hidden">
+      <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
+        <h3 class="font-bold text-slate-800 dark:text-slate-200">Nova Nota</h3>
+        <button onclick="fecharModalNota()" class="text-slate-400 hover:text-rose-500 font-bold text-xl px-2 transition-colors">&times;</button>
+      </div>
+      <div class="p-5 flex flex-col">
+        <label class="text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Título da Nota</label>
+        <input type="text" id="nota-nome-input" value="Folha Rascunho" class="mb-5 w-full text-sm px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-white focus:outline-none focus:border-amber-500 transition-colors" placeholder="Nome da folha">
+        
+        <label class="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">Formato da Folha</label>
+        <div class="grid grid-cols-3 gap-3 mb-2">
+          <button onclick="criarNotaFromModal('A4')" class="py-4 px-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-amber-500 hover:text-white transition-all flex flex-col items-center justify-center gap-2 border border-slate-200 dark:border-slate-700 shadow-sm group">
+            <div class="w-6 h-8 bg-white border-2 border-slate-300 dark:border-slate-600 group-hover:border-white rounded-sm transition-colors shadow-sm"></div>
+            <span class="text-[11px] font-bold">A4</span>
+          </button>
+          <button onclick="criarNotaFromModal('Carta')" class="py-4 px-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-amber-500 hover:text-white transition-all flex flex-col items-center justify-center gap-2 border border-slate-200 dark:border-slate-700 shadow-sm group">
+            <div class="w-[1.6rem] h-8 bg-white border-2 border-slate-300 dark:border-slate-600 group-hover:border-white rounded-sm transition-colors shadow-sm"></div>
+            <span class="text-[11px] font-bold">Carta</span>
+          </button>
+          <button onclick="criarNotaFromModal('Quadro')" class="py-4 px-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-amber-500 hover:text-white transition-all flex flex-col items-center justify-center gap-2 border border-slate-200 dark:border-slate-700 shadow-sm group">
+            <div class="w-8 h-8 bg-white border-2 border-slate-300 dark:border-slate-600 group-hover:border-white rounded-sm border-dashed transition-colors shadow-sm"></div>
+            <span class="text-[11px] font-bold">Quadro</span>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
   <script>
+    // --- VARIÁVEIS GLOBAIS ---
     const canvas = document.getElementById('canvas');
     const boardWrapper = document.getElementById('board-wrapper');
     const canvasContainer = document.getElementById('canvas-container');
-    let localizedFiles = [];
+    
+    let localizedFiles = []; // Armazena arquivos inseridos pelo usuário
+    let isPanning = false; // Controle de arrasto do quadro
+    let forcePanMode = false; // Controle do Modo Mãozinha
+    let startX = 0, startY = 0; // Ponto inicial de clique para arrastar
+    let panX = 0, panY = 0; // O deslocamento atual do quadro
+    let zoom = 1; // Nível atual de zoom (1 = 100%)
+    let multiSelectMode = false; // Define se a seleção múltipla está ativa
 
-    let isPanning = false;
-    let startX = 0, startY = 0;
-    let panX = 0, panY = 0;
-    let zoom = 1;
+    let mouseXCanvas = 200; // Posição X do mouse relativa ao quadro
+    let mouseYCanvas = 200; // Posição Y do mouse relativa ao quadro
 
-    let mouseXCanvas = 200;
-    let mouseYCanvas = 200;
+    // Configurações para zoom de pinça
+    let touchStartDist = 0;
+    let touchStartZoom = 1;
+    let touchStartCenter = { x: 0, y: 0 };
+    let isPinching = false;
 
-    // --- INICIALIZAÇÃO DO INDEXEDDB ---
+    // Configurações e proporções para os tipos de Notas
+    const paperConfigs = {
+        'A4': { canvasW: 794, canvasH: 1123, cssW: 340, cssH: 481, cardW: 400, cardH: 565 },
+        'Carta': { canvasW: 816, canvasH: 1056, cssW: 340, cssH: 440, cardW: 400, cardH: 520 },
+        'Quadro': { canvasW: 4000, canvasH: 4000, cssW: 2000, cssH: 2000, cardW: 600, cardH: 500 }
+    };
+
+    // --- BANCO DE DADOS (INDEXEDDB) ---
+    // Usado para salvar arquivos pesados (Vídeos e PDFs) e evitar travamentos no LocalStorage
     let db;
     const dbRequest = indexedDB.open("DexiDatabase", 2);
     dbRequest.onupgradeneeded = (e) => {
       db = e.target.result;
-      if (!db.objectStoreNames.contains("pdfs")) {
-        db.createObjectStore("pdfs");
-      }
-      if (!db.objectStoreNames.contains("media")) {
-        db.createObjectStore("media");
-      }
+      if (!db.objectStoreNames.contains("pdfs")) db.createObjectStore("pdfs");
+      if (!db.objectStoreNames.contains("media")) db.createObjectStore("media");
     };
     dbRequest.onsuccess = (e) => {
       db = e.target.result;
-      carregarEstadoDoStorage();
+      carregarEstadoDoStorage(); // Carrega os cards salvos ao iniciar a página
     };
     dbRequest.onerror = (e) => { console.error("Erro ao abrir IndexedDB", e); };
 
@@ -259,6 +218,9 @@
       transaction.objectStore(["media"]).delete(id);
     }
 
+    // --- CONTROLE DA CÂMERA (QUADRO INIFINITO) ---
+
+    // Aplica fisicamente o pan (arraste) e o zoom no container via CSS
     function updateTransform() {
       canvasContainer.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
       boardWrapper.style.backgroundPosition = `${panX}px ${panY}px`;
@@ -266,56 +228,128 @@
       document.getElementById('zoom-indicator').innerText = `${Math.round(zoom * 100)}%`;
     }
 
-    // --- FUNÇÕES DE ZOOM ---
+    // Controle de Zoom usando a roda do Mouse (Scroll)
     function handleWheel(e) {
+      // Impede zoom da câmera se o mouse estiver sobre áreas roláveis (ex: PDFs ou Notas)
+      if (e.target.closest('.drawing-canvas') || e.target.closest('.scroll-container-a4')) return; 
       e.preventDefault();
       const zoomFactor = 1.1;
       let newZoom = zoom;
 
       if (e.deltaY < 0) {
-        newZoom = Math.min(zoom * zoomFactor, 3);
+        newZoom = Math.min(zoom * zoomFactor, 3); // Zoom In
       } else {
-        newZoom = Math.max(zoom / zoomFactor, 0.15);
+        newZoom = Math.max(zoom / zoomFactor, 0.15); // Zoom Out
       }
 
+      // Calcula a posição do mouse para que o zoom vá na direção do cursor
       const rect = boardWrapper.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
-
       panX = mouseX - (mouseX - panX) * (newZoom / zoom);
       panY = mouseY - (mouseY - panY) * (newZoom / zoom);
-
       zoom = newZoom;
+      
       updateTransform();
     }
     boardWrapper.addEventListener('wheel', handleWheel, { passive: false });
 
+    // Métodos auxiliares para zoom de pinça de dois dedos
+    function getTouchDist(e) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function getTouchCenter(e) {
+      return {
+        x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+      };
+    }
+
+    // Funções de Zoom chamadas por botões na UI
     window.changeZoom = function(delta) {
       let newZoom = zoom + delta;
       newZoom = Math.max(0.15, Math.min(newZoom, 3));
-      
       const width = window.innerWidth;
       const height = window.innerHeight;
-      
       panX = width / 2 - (width / 2 - panX) * (newZoom / zoom);
       panY = height / 2 - (height / 2 - panY) * (newZoom / zoom);
-      
       zoom = newZoom;
       updateTransform();
     }
-
     window.resetZoom = function() {
-      zoom = 1;
-      panX = 0;
-      panY = 0;
+      zoom = 1; panX = 0; panY = 0;
       updateTransform();
     }
+    
+    // Alterna o estado do menu lateral baseando-se no que está salvo
+    window.toggleSidebarState = function() {
+      const isVisible = localStorage.getItem('dexi_menu_visible') === 'true';
+      toggleMenu(!isVisible);
+    }
+    
+    // Alterna a exibição do menu flutuante de ferramentas (Zoom/Mãozinha)
+    window.toggleFloatingTools = function() {
+      const panel = document.getElementById('floating-tools-panel');
+      const btn = document.getElementById('floating-toggle-btn');
+      
+      if (panel.classList.contains('hidden')) {
+        // Mostrar
+        panel.classList.remove('hidden');
+        panel.classList.add('flex');
+        btn.innerText = '▼';
+        btn.setAttribute('title', 'Ocultar Ferramentas');
+      } else {
+        // Ocultar
+        panel.classList.add('hidden');
+        panel.classList.remove('flex');
+        btn.innerText = '▲';
+        btn.setAttribute('title', 'Mostrar Ferramentas');
+      }
+    }
 
+    // Ativa/Desativa o modo de mover o quadro livremente
+    window.togglePanMode = function() {
+      forcePanMode = !forcePanMode;
+      const btn = document.getElementById('pan-mode-toggle');
+      if (forcePanMode) {
+        btn.classList.add('bg-amber-500', 'text-white');
+        btn.classList.remove('bg-slate-100', 'dark:bg-slate-800', 'hover:bg-slate-200', 'dark:hover:bg-slate-700');
+      } else {
+        btn.classList.remove('bg-amber-500', 'text-white');
+        btn.classList.add('bg-slate-100', 'dark:bg-slate-800', 'hover:bg-slate-200', 'dark:hover:bg-slate-700');
+      }
+    }
+
+    // Funções para arrastar o quadro com o mouse/touch e suportar pinch zoom
     function startPan(e) {
-      if (e.target.closest('.codex-card') || e.target.closest('aside') || e.target.closest('button') || e.target.closest('input') || e.target.closest('a') || e.target.closest('canvas') || e.target.closest('embed')) {
+      if (e.touches && e.touches.length === 2) {
         isPanning = false;
+        isPinching = true;
+        touchStartDist = getTouchDist(e);
+        touchStartZoom = zoom;
+        touchStartCenter = getTouchCenter(e);
+        startX = touchStartCenter.x - panX;
+        startY = touchStartCenter.y - panY;
+        e.preventDefault();
         return;
       }
+      isPinching = false;
+
+      if (!forcePanMode) {
+        // Não arrasta o quadro se o usuário clicou num card ou botão
+        if (e.target.closest('.codex-card') || e.target.closest('aside') || e.target.closest('button') || e.target.closest('input') || e.target.closest('a') || e.target.closest('canvas') || e.target.closest('embed') || e.target.closest('iframe')) {
+          isPanning = false; return;
+        }
+      } else {
+        // MODO NAVEGAÇÃO ATIVO: Permite arrastar o quadro clicando nos cards
+        if (e.target.closest('aside') || e.target.closest('button') || e.target.closest('input')) {
+          isPanning = false; return;
+        }
+      }
+
       isPanning = true;
       const pageX = e.touches ? e.touches[0].pageX : e.pageX;
       const pageY = e.touches ? e.touches[0].pageY : e.pageY;
@@ -323,7 +357,36 @@
       startY = pageY - panY;
     }
 
+    // Gerencia o deslocamento do canvas e o zoom de dois dedos
     function doPan(e) {
+      if (e.touches && e.touches.length === 2 && isPinching) {
+        e.preventDefault();
+        const currentDist = getTouchDist(e);
+        const currentCenter = getTouchCenter(e);
+        
+        let newZoom = touchStartZoom * (currentDist / touchStartDist);
+        newZoom = Math.max(0.15, Math.min(newZoom, 3));
+        
+        const rect = boardWrapper.getBoundingClientRect();
+        const centerCanvasX = currentCenter.x - rect.left;
+        const centerCanvasY = currentCenter.y - rect.top;
+        
+        const zoomFactor = newZoom / zoom;
+        panX = centerCanvasX - (centerCanvasX - panX) * zoomFactor;
+        panY = centerCanvasY - (centerCanvasY - panY) * zoomFactor;
+        
+        // Deslocamento físico da mão (mover ao pinçar)
+        const dx = currentCenter.x - touchStartCenter.x;
+        const dy = currentCenter.y - touchStartCenter.y;
+        panX += dx;
+        panY += dy;
+
+        touchStartCenter = currentCenter;
+        zoom = newZoom;
+        updateTransform();
+        return;
+      }
+
       if (!isPanning) return;
       const pageX = e.touches ? e.touches[0].pageX : e.pageX;
       const pageY = e.touches ? e.touches[0].pageY : e.pageY;
@@ -332,15 +395,24 @@
       updateTransform();
     }
 
-    function endPan() { isPanning = false; }
+    function endPan(e) { 
+      isPanning = false; 
+      isPinching = false;
+    }
 
     boardWrapper.addEventListener('mousedown', startPan);
     window.addEventListener('mousemove', doPan);
     window.addEventListener('mouseup', endPan);
-    boardWrapper.addEventListener('touchstart', startPan, { passive: true });
-    window.addEventListener('touchmove', doPan, { passive: true });
+    boardWrapper.addEventListener('touchstart', startPan, { passive: false });
+    window.addEventListener('touchmove', doPan, { passive: false });
     window.addEventListener('touchend', endPan);
 
+    // Limpa seleções se o usuário clicar no fundo vazio
+    boardWrapper.addEventListener('click', (e) => {
+      if (e.target === boardWrapper || e.target === canvas || e.target === canvasContainer) limparSelecao();
+    });
+
+    // Mantém o controle exato de onde o mouse está no plano infinito (Útil para criar cards onde o mouse está)
     function updateCanvasCoordinates(e) {
       const rect = canvas.getBoundingClientRect();
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -353,6 +425,9 @@
     window.addEventListener('mousemove', updateCanvasCoordinates);
     window.addEventListener('touchmove', updateCanvasCoordinates, { passive: true });
 
+    // --- CONTROLE DE UI (Interface) ---
+
+    // Alternar abertura do menu lateral
     function toggleMenu(show) {
       const sidebar = document.getElementById('sidebar');
       const triggerLeft = document.getElementById('trigger-left');
@@ -367,6 +442,7 @@
       }
     }
 
+    // Alternar entre modo claro/escuro da página
     function toggleTheme() {
       const html = document.documentElement;
       if (html.classList.contains('dark')) {
@@ -377,23 +453,22 @@
         localStorage.setItem('theme', 'dark');
       }
     }
-
     if (localStorage.getItem('theme') === 'light') document.documentElement.classList.remove('dark');
+
+    // --- IMPORTAÇÃO DE ARQUIVOS (DRAG & DROP E BROWSER) ---
 
     function triggerFolderSelector() { document.getElementById('folder-selector').click(); }
 
     async function handleFolderSelection(files) {
       localizedFiles = Array.from(files);
       if (localizedFiles.length === 0) return;
-      
       for (const file of localizedFiles) {
-        if (file.size > 0 || file.type !== "") {
-          await processAndCreateCard(file);
-        }
+        if (file.size > 0 || file.type !== "") await processAndCreateCard(file);
       }
       document.getElementById('folder-selector').value = '';
     }
 
+    // Eventos Drag and Drop direto no navegador
     const dropZone = boardWrapper;
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
       dropZone.addEventListener(eventName, e => e.preventDefault(), false);
@@ -402,44 +477,186 @@
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('bg-slate-200/40', 'dark:bg-slate-800/40'));
     dropZone.addEventListener('drop', (e) => {
       dropZone.classList.remove('bg-slate-200/40', 'dark:bg-slate-800/40');
+      
+      // Checa se o usuário colou um link em vez de um arquivo
       const linkData = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
       if (linkData && (linkData.startsWith('http://') || linkData.startsWith('https://'))) {
-        processLinkCard(linkData);
+        tratarLinkColado(linkData);
         return;
       }
+      // Se for arquivo, processa e cria
       const files = e.dataTransfer.files;
       if (files.length > 0) {
         Array.from(files).forEach(file => processAndCreateCard(file));
       }
     });
 
-    function processLinkCard(url, savedTag = '') {
-      let hostname = 'Link';
-      try { hostname = new URL(url).hostname; } catch (e) { }
-      const bodyHtml = `
-        <div class="p-4 text-center bg-slate-50 dark:bg-slate-950/40 h-full flex flex-col justify-between items-center gap-2">
-          <input type="text" value="${escapeHTML(savedTag)}" placeholder="Dar um nome/tag..." oninput="atualizarTagLink(this)" class="w-full text-xs font-medium px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:border-amber-500 text-slate-700 dark:text-slate-200 select-text">
-          <p class="text-[10px] text-slate-400 dark:text-slate-500 font-mono truncate w-full px-1" title="${url}">${url}</p>
-          <a href="${url}" target="_blank" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-xl shadow text-xs transition-all flex items-center justify-center gap-1">Visitar Link ↗</a>
-        </div>`;
-      createCard('LINK', hostname, bodyHtml, 280);
+    // --- SELEÇÃO DE MÚLTIPLOS CARDS E AGRUPAMENTO ---
+
+    // Mostra ou esconde a barra superior (Agrupar, Desagrupar, Excluir)
+    function atualizarToolbarSelecao() {
+      const selecionados = document.querySelectorAll('.selected-card');
+      const toolbar = document.getElementById('selection-toolbar');
+      const countSpan = document.getElementById('selection-count');
+      if (selecionados.length > 0) {
+        countSpan.innerText = `${selecionados.length} selecionado(s)`;
+        toolbar.classList.remove('opacity-0', 'scale-95', 'pointer-events-none');
+        toolbar.classList.add('opacity-100', 'scale-100');
+      } else {
+        toolbar.classList.remove('opacity-100', 'scale-100');
+        toolbar.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
+      }
     }
 
-    function atualizarTagLink(inputElement) {
-      inputElement.setAttribute('value', inputElement.value);
+    function limparSelecao() {
+      document.querySelectorAll('.selected-card').forEach(card => {
+        card.classList.remove('ring-4', 'ring-indigo-500', 'dark:ring-indigo-400', 'selected-card');
+      });
+      atualizarToolbarSelecao();
+    }
+
+    // Cria um grupo visual/lógico para arrastar e redimensionar cards juntos
+    window.agruparSelecionados = function() {
+      const selecionados = document.querySelectorAll('.selected-card');
+      if (selecionados.length < 2) { alert("Selecione pelo menos 2 cards para agrupar."); return; }
+      const groupId = 'group_' + Date.now();
+      selecionados.forEach(card => {
+        card.dataset.groupId = groupId;
+        adicionarIndicadorGrupo(card); // Adiciona o emoji 📌
+      });
+      limparSelecao();
       salvarEstadoNoStorage();
     }
 
+    window.desagruparSelecionados = function() {
+      const selecionados = document.querySelectorAll('.selected-card');
+      if (selecionados.length === 0) return;
+      selecionados.forEach(card => {
+        delete card.dataset.groupId;
+        const badge = card.querySelector('.group-badge');
+        if (badge) badge.remove();
+      });
+      limparSelecao();
+      salvarEstadoNoStorage();
+    }
+
+    // Exclui todos os cards selecionados simultaneamente (limpando-os do banco de dados também)
+    window.excluirSelecionados = function() {
+      const selecionados = document.querySelectorAll('.selected-card');
+      if (selecionados.length === 0) return;
+      if (confirm(`Pretende mesmo excluir os ${selecionados.length} cards selecionados?`)) {
+        selecionados.forEach(card => {
+          const viewerEl = card.querySelector('[data-viewerid]');
+          if (viewerEl && viewerEl.dataset.pdfsourceid) removerPdfDoDb(viewerEl.dataset.pdfsourceid);
+          const videoEl = card.querySelector('[data-mediasourceid]');
+          if (videoEl && videoEl.dataset.mediasourceid) removerMediaDoDb(videoEl.dataset.mediasourceid);
+          card.remove();
+        });
+        atualizarToolbarSelecao();
+        salvarEstadoNoStorage();
+      }
+    }
+
+    function adicionarIndicadorGrupo(card) {
+      let badge = card.querySelector('.group-badge');
+      if (!badge) {
+        const header = card.querySelector('.card-header');
+        const container = header.querySelector('.flex.items-center.gap-2');
+        badge = document.createElement('span');
+        badge.className = 'group-badge px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-[9px] font-mono shrink-0 font-bold ml-1';
+        badge.innerText = '📌';
+        if (container) container.appendChild(badge);
+      }
+    }
+
+    // --- CRIAÇÃO DE CARDS DE LINKS (Bookmarks/Anotações Web) ---
+
+    // Gera o HTML interno de uma linha de Link (com favicon, título e url)
+    function gerarStructureItemLink(url = '', tag = '') {
+      let domain = '';
+      try { domain = new URL(url).hostname; } catch(e) {}
+      const fallbackSvgBase64 = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM2NDc0OGIiIHN0cm9rZS13aWR0aD0iMiI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiPjwvY2lyY2xlPjwvc3ZnPg==";
+      const faviconUrl = domain ? `https://www.google.com/s2/favicons?sz=64&domain=${domain}` : fallbackSvgBase64;
+
+      return `
+        <div class="flex flex-col gap-1 p-2 border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900/60 rounded-xl relative group/item" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();">
+          <button onclick="this.parentElement.remove(); salvarEstadoNoStorage();" class="absolute -top-1 -right-1 hidden group-hover/item:flex items-center justify-center bg-rose-500 hover:bg-rose-600 text-white font-bold w-4 h-4 rounded-full text-[9px] shadow transition-all">&times;</button>
+          <div class="flex gap-1.5 items-center w-full">
+            <img src="${faviconUrl}" onerror="this.onerror=null;this.src='${fallbackSvgBase64}';" class="w-4 h-4 rounded object-contain bg-slate-100 dark:bg-slate-800 p-0.5 shrink-0" alt="Favicon">
+            <input type="text" value="${escapeHTML(tag)}" placeholder="Nome/tag..." oninput="atualizarTagLink(this)" class="w-full text-[11px] font-semibold px-2 py-1 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:outline-none focus:border-amber-500 text-slate-700 dark:text-slate-200 select-text">
+          </div>
+          <div class="flex gap-1 items-center">
+            <input type="text" value="${escapeHTML(url)}" placeholder="https://..." oninput="atualizarTagLink(this)" class="url-input-field flex-1 text-[10px] px-2 py-1 rounded-md border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:outline-none focus:border-amber-500 text-slate-500 dark:text-slate-400 font-mono select-text truncate">
+            <button onclick="abrirLinkDoCard(this)" class="bg-amber-500 hover:bg-amber-600 text-white px-2 py-1 rounded-md text-[11px] font-bold transition-all shrink-0 shadow-sm">↗</button>
+          </div>
+        </div>`;
+    }
+
+    window.adicionarNovaLinhaLink = function(button) {
+      const container = button.closest('.link-card-body').querySelector('.links-container-list');
+      const div = document.createElement('div');
+      div.innerHTML = gerarStructureItemLink('', '');
+      container.appendChild(div.firstElementChild);
+      salvarEstadoNoStorage();
+    }
+
+    window.abrirLinkDoCard = function(button) {
+      const parent = button.parentElement;
+      const input = parent.querySelector('.url-input-field');
+      if (input && input.value.trim()) {
+        let url = input.value.trim();
+        if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+        window.open(url, '_blank');
+      }
+    }
+
+    // Cria visualmente o Card de links
+    function processLinkCard(url, savedTag = '') {
+      let hostname = 'Central de Links';
+      try { hostname = new URL(url).hostname; } catch (e) { }
+      const bodyHtml = `
+        <div class="link-card-body p-3 bg-slate-50 dark:bg-slate-950/40 h-full flex flex-col justify-between gap-2 select-none">
+          <div class="links-container-list flex-1 overflow-y-auto pointer-events-auto flex flex-col gap-2 pr-0.5">
+            ${gerarStructureItemLink(url, savedTag)}
+          </div>
+          <button onclick="adicionarNovaLinhaLink(this)" class="w-full shrink-0 bg-slate-200/80 hover:bg-amber-500 dark:bg-slate-800 dark:hover:bg-amber-500 text-slate-700 dark:text-slate-300 hover:text-white font-bold py-1.5 px-3 rounded-xl transition-all flex items-center justify-center gap-1 text-xs shadow-sm pointer-events-auto">
+            + Adicionar Link
+          </button>
+        </div>`;
+      createCard('LINKS', hostname, bodyHtml, 290, null);
+    }
+
+    // Atualiza ícone do site quando o usuário digita a URL manualmente
+    function atualizarTagLink(inputElement) {
+      inputElement.setAttribute('value', inputElement.value);
+      if(inputElement.classList.contains('url-input-field')) {
+        const itemContainer = inputElement.closest('.group\\/item');
+        const imgEl = itemContainer.querySelector('img');
+        if(imgEl) {
+          try {
+            let domain = new URL(inputElement.value).hostname;
+            if(domain) imgEl.src = `https://www.google.com/s2/favicons?sz=64&domain=${domain}`;
+          } catch(e) {}
+        }
+      }
+      salvarEstadoNoStorage();
+    }
+
+    // --- LÓGICA PRINCIPAL: PROCESSAR ARQUIVOS QUE CHEGAM AO QUADRO ---
+    
+    // Converte os arquivos reais enviados pelo usuário em Cards visuais com HTML injetado
     async function processAndCreateCard(file) {
       const fileNameLower = file.name.toLowerCase();
       const extension = file.name.includes('.') ? file.name.split('.').pop().toUpperCase() : 'ARQUIVO';
       let bodyHtml = '';
 
+      // Arquivos de Texto (.txt, .md)
       if (fileNameLower.endsWith('.txt') || fileNameLower.endsWith('.md')) {
         const text = await file.text();
-        bodyHtml = `<div class="p-4 text-sm h-full overflow-y-auto text-slate-700 dark:text-slate-300 font-mono bg-slate-50/50 dark:bg-slate-950/50 whitespace-pre-wrap">${escapeHTML(text)}</div>`;
+        bodyHtml = `<div class="p-4 text-sm h-full overflow-y-auto text-slate-700 dark:text-slate-300 font-mono bg-slate-50/50 dark:bg-slate-950/50 whitespace-pre-wrap" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();">${escapeHTML(text)}</div>`;
         createCard(extension, file.name, bodyHtml);
       }
+      // Arquivos de Imagem
       else if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(fileNameLower)) {
         bodyHtml = await new Promise((resolve) => {
           const reader = new FileReader();
@@ -452,21 +669,22 @@
         });
         createCard(extension, file.name, bodyHtml, 320);
       }
+      // Arquivos de Vídeo
       else if (/\.(mp4|webm|ogg|mov)$/i.test(fileNameLower)) {
         const mediaId = "video_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
-        guardarMediaNoDb(mediaId, file);
-        
+        guardarMediaNoDb(mediaId, file); // Salva no IndexedDB
         const videoUrl = URL.createObjectURL(file);
-        bodyHtml = `<div class="w-full h-full bg-slate-950 flex items-center justify-center" data-mediasourceid="${mediaId}">
+        bodyHtml = `<div class="w-full h-full bg-slate-950 flex items-center justify-center" data-mediasourceid="${mediaId}" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();">
                       <video src="${videoUrl}" controls class="w-full h-full object-contain pointer-events-auto"></video>
                     </div>`;
         createCard(extension, file.name, bodyHtml, 360);
       }
+      // Arquivos de Áudio
       else if (/\.(mp3|wav|ogg|m4a|flac)$/i.test(fileNameLower)) {
         bodyHtml = await new Promise((resolve) => {
           const reader = new FileReader();
           reader.onload = (e) => {
-            resolve(`<div class="p-4 bg-slate-50 dark:bg-slate-950 h-full flex flex-col justify-center items-center gap-2">
+            resolve(`<div class="p-4 bg-slate-50 dark:bg-slate-950 h-full flex flex-col justify-center items-center gap-2" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();">
                         <span class="text-[2rem]">🎵</span>
                         <audio src="${e.target.result}" controls class="w-full pointer-events-auto"></audio>
                       </div>`);
@@ -475,11 +693,13 @@
         });
         createCard(extension, file.name, bodyHtml, 300);
       }
+      // Arquivos PDF
       else if (fileNameLower.endsWith('.pdf')) {
         const pdfId = "pdf_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
-        guardarPdfNoDb(pdfId, file);
+        guardarPdfNoDb(pdfId, file); // Salva no IndexedDB
         montarEGerarLeitorPdf(pdfId, file.name, 1);
       }
+      // Tipos desconhecidos
       else {
         bodyHtml = `<div class="p-5 text-center bg-slate-50 dark:bg-slate-950/40 h-full flex flex-col justify-center items-center">
                       <p class="text-xs text-slate-400 mb-2">Arquivo carregado na sessão.</p>
@@ -489,9 +709,11 @@
       }
     }
 
+    // --- LEITOR DE PDF (PDF.JS) ---
+
+    // Cria o esqueleto do Visualizador PDF e chama a renderização
     function montarEGerarLeitorPdf(id, filename, paginaInicial = 1, savedProps = null) {
       const viewerId = "view_" + id + "_" + Date.now();
-
       const readerContentHtml = `
         <div class="w-full h-full bg-slate-900 flex flex-col relative select-none" data-viewerid="${viewerId}" data-pdfsourceid="${id}" data-current-page="${paginaInicial}">
           <div class="bg-slate-800 text-white px-3 py-1.5 flex justify-between items-center text-xs shrink-0 select-none">
@@ -499,39 +721,31 @@
               <button onclick="mudarPaginaCard('${viewerId}', -1)" class="bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded font-bold transition-all"><</button>
               <button onclick="mudarPaginaCard('${viewerId}', 1)" class="bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded font-bold transition-all">></button>
             </div>
-            <div class="flex items-center gap-1 font-mono text-[11px]">
+            <div class="flex items-center gap-1 font-mono text-[11px]" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();">
               <span>Pág:</span>
               <input type="number" value="${paginaInicial}" min="1" onchange="irParaPaginaCard('${viewerId}', this.value)" 
                 class="page-input-card w-12 text-center font-bold text-amber-400 bg-slate-900 border border-slate-700 rounded py-0.5 focus:outline-none focus:border-amber-500 select-text pointer-events-auto">
               <span>/ <span class="page-count-card">?</span></span>
             </div>
           </div>
-          <div class="flex-1 overflow-auto p-2 flex justify-center items-start bg-slate-950 pointer-events-auto">
+          <div class="flex-1 overflow-auto p-2 flex justify-center items-start bg-slate-950 pointer-events-auto" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();">
             <canvas class="pdf-viewer-canvas shadow-lg max-w-full h-auto"></canvas>
           </div>
         </div>`;
 
       const customWidth = window.innerWidth > 800 ? 650 : 340;
-      
       let props = savedProps;
-      if (!props) {
+      if (!props) { // Posiciona o card próximo de onde o mouse do usuário está
         const targetLeft = mouseXCanvas ? (mouseXCanvas - 50) : (Math.abs(panX) / zoom + 400);
         const targetTop = mouseYCanvas ? (mouseYCanvas - 20) : (Math.abs(panY) / zoom + 100);
-        props = {
-          width: `${customWidth}px`,
-          height: `550px`,
-          left: `${targetLeft}px`,
-          top: `${targetTop}px`
-         };
+        props = { width: `${customWidth}px`, height: `550px`, left: `${targetLeft}px`, top: `${targetTop}px` };
       }
 
       createCard('PDF', filename, readerContentHtml, customWidth, props);
-
-      setTimeout(() => {
-        renderizarPaginaVisualizador(viewerId, id);
-      }, 150);
+      setTimeout(() => { renderizarPaginaVisualizador(viewerId, id); }, 150);
     }
 
+    // Busca o Blob no IndexedDB e renderiza como imagem em um elemento Canvas
     function renderizarPaginaVisualizador(viewerId, pdfId) {
       if (!db) return;
       const container = document.querySelector(`[data-viewerid="${viewerId}"]`);
@@ -547,7 +761,6 @@
         const fileReader = new FileReader();
         fileReader.onload = function () {
           const typedarray = new Uint8Array(this.result);
-
           pdfjsLib.getDocument(typedarray).promise.then(pdf => {
             const pageNum = parseInt(container.dataset.currentPage) || 1;
             container.querySelector('.page-count-card').innerText = pdf.numPages;
@@ -557,7 +770,6 @@
               if (!canvasEl) return;
 
               const context = canvasEl.getContext('2d');
-              
               const cardBodyWidth = canvasEl.parentElement.clientWidth || 400;
               const unscaledViewport = page.getViewport({ scale: 1.0 });
               
@@ -565,37 +777,31 @@
               if (scale > 2.0) scale = 2.0; 
 
               const viewport = page.getViewport({ scale: scale });
-
               const dpr = window.devicePixelRatio || 1;
               
               canvasEl.width = viewport.width * dpr;
               canvasEl.height = viewport.height * dpr;
-
               canvasEl.style.width = `${viewport.width}px`;
               canvasEl.style.height = `${viewport.height}px`;
 
               context.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-              const renderContext = {
-                canvasContext: context,
-                viewport: viewport
-              };
+              const renderContext = { canvasContext: context, viewport: viewport };
               page.render(renderContext).promise.then(() => {
                 const inputEl = container.querySelector('.page-input-card');
                 if (inputEl) inputEl.value = pageNum;
-                salvarEstadoNoStorage();
+                salvarEstadoNoStorage(); // Salva estado para lembrar a página
               });
             });
-          }).catch(err => console.error("Erro ao renderizar página expandida:", err));
+          }).catch(err => console.error("Erro ao renderizar PDF:", err));
         };
         fileReader.readAsArrayBuffer(blob);
       };
     }
 
+    // Botões de Próximo e Anterior no PDF
     window.mudarPaginaCard = function(viewerId, delta) {
       const container = document.querySelector(`[data-viewerid="${viewerId}"]`);
       if (!container) return;
-
       let currentPage = parseInt(container.dataset.currentPage) || 1;
       const totalPages = parseInt(container.querySelector('.page-count-card').innerText) || 1;
 
@@ -605,14 +811,13 @@
 
       container.dataset.currentPage = currentPage;
       const pdfId = container.dataset.pdfsourceid;
-
       renderizarPaginaVisualizador(viewerId, pdfId);
     }
 
+    // Inputs diretos no número de página
     window.irParaPaginaCard = function(viewerId, valor) {
       const container = document.querySelector(`[data-viewerid="${viewerId}"]`);
       if (!container) return;
-
       const totalPages = parseInt(container.querySelector('.page-count-card').innerText) || 1;
       let targetPage = parseInt(valor) || 1;
 
@@ -620,7 +825,6 @@
       if (targetPage > totalPages) targetPage = totalPages;
 
       container.dataset.currentPage = targetPage;
-      
       const inputEl = container.querySelector('.page-input-card');
       if (inputEl) inputEl.value = targetPage;
 
@@ -628,22 +832,32 @@
       renderizarPaginaVisualizador(viewerId, pdfId);
     }
 
+    // --- FUNÇÃO "CORE": CRIAÇÃO DO ELEMENTO DOM DO CARD ---
+    
+    // Injeta as divs do container (Card), define estilos, tamanhos, botões de fechar, etc.
     function createCard(fileType, filename, bodyContent, customWidth = 280, savedProps = null) {
       const card = document.createElement('div');
-      card.className = `codex-card absolute bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-lg dark:shadow-2xl z-10 hover:border-slate-400 dark:hover:border-slate-600 overflow-hidden flex flex-col transform-none`;
+      card.className = `codex-card absolute bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-lg dark:shadow-2xl z-10 hover:border-slate-400 dark:hover:border-slate-600 overflow-hidden flex flex-col transform-none transition-shadow duration-150`;
 
       card.dataset.filetype = fileType;
       card.dataset.filename = filename;
 
       const finalWidth = customWidth;
-      const finalHeight = savedProps && savedProps.height ? parseFloat(savedProps.height) : 260;
+      const finalHeight = savedProps && savedProps.height ? parseFloat(savedProps.height) : 280;
 
+      // Se o card já tem posições gravadas (sendo recarregado)
       if (savedProps) {
         card.style.width = savedProps.width;
         card.style.height = savedProps.height;
         card.style.left = savedProps.left;
         card.style.top = savedProps.top;
-      } else {
+        if (savedProps.groupId) {
+          card.dataset.groupId = savedProps.groupId;
+          setTimeout(() => adicionarIndicadorGrupo(card), 50);
+        }
+      } 
+      // Se é um card novo, cria uma grid inteligente para espalhá-los sem sobrepor
+      else {
         card.style.width = `${finalWidth}px`;
         card.style.height = `${finalHeight}px`;
         const totalCards = document.querySelectorAll('.codex-card').length;
@@ -657,8 +871,8 @@
         card.style.top = `${startY}px`;
       }
 
-      card.style.minWidth = `200px`;
-      card.style.minHeight = `140px`;
+      card.style.minWidth = `230px`;
+      card.style.minHeight = `160px`;
 
       card.innerHTML = `
         <div class="card-header px-4 py-3 border-b border-slate-100 dark:border-slate-800/60 flex justify-between items-center font-bold text-xs rounded-t-2xl select-none shrink-0 cursor-move">
@@ -673,46 +887,120 @@
         </div>
         <div class="resize-handle"></div>`;
 
+      // Lógica para clicar no card e enviá-lo ao topo do quadro (zIndex) + lógica de multiseleção
+      const header = card.querySelector('.card-header');
+      header.addEventListener('pointerdown', (e) => {
+        if (e.target.tagName === 'BUTTON') return;
+        if (card.classList.contains('card-fullscreen')) return; // Bloqueia interações em tela cheia
+        
+        document.querySelectorAll('.codex-card').forEach(c => {
+          if(!c.classList.contains('selected-card')) c.style.zIndex = 10;
+        });
+        card.style.zIndex = 50;
+
+        const isSelected = card.classList.contains('selected-card');
+        const isMultiSelectIntent = e.ctrlKey || e.shiftKey || multiSelectMode;
+
+        if (isMultiSelectIntent) {
+          if (isSelected) {
+            card.classList.remove('ring-4', 'ring-indigo-500', 'dark:ring-indigo-400', 'selected-card');
+          } else {
+            card.classList.add('ring-4', 'ring-indigo-500', 'dark:ring-indigo-400', 'selected-card');
+          }
+        } else {
+          if (!isSelected) {
+            document.querySelectorAll('.selected-card').forEach(c => {
+              c.classList.remove('ring-4', 'ring-indigo-500', 'dark:ring-indigo-400', 'selected-card');
+            });
+            card.classList.add('ring-4', 'ring-indigo-500', 'dark:ring-indigo-400', 'selected-card');
+          }
+        }
+        atualizarToolbarSelecao();
+      });
+
       canvas.appendChild(card);
-      applyInteract(card);
+      applyInteract(card); // Habilita o drag & drop / resize do interact.js
       if (!savedProps) salvarEstadoNoStorage();
+      return card;
     }
 
+    // Ativa o botão flutuante de seleção múltipla constante (para mobile)
+    function toggleMultiSelectMode() {
+      multiSelectMode = !multiSelectMode;
+      const button = document.getElementById('multi-select-toggle');
+      if (!button) return;
+      if (multiSelectMode) {
+        button.classList.remove('bg-slate-100', 'dark:bg-slate-800', 'hover:bg-slate-200', 'dark:hover:bg-slate-700');
+        button.classList.add('bg-amber-500', 'text-white');
+        button.setAttribute('title', 'Modo de multiseleção ativo');
+      } else {
+        button.classList.add('bg-slate-100', 'dark:bg-slate-800', 'hover:bg-slate-200', 'dark:hover:bg-slate-700');
+        button.classList.remove('bg-amber-500', 'text-white');
+        button.setAttribute('title', 'Modo de multiseleção');
+      }
+    }
+
+    // Remove do DOM e do Banco de Dados
     window.excluirCard = function(button) {
       const card = button.closest('.codex-card');
       if (card) {
         const viewerEl = card.querySelector('[data-viewerid]');
-        if (viewerEl && viewerEl.dataset.pdfsourceid) {
-          removerPdfDoDb(viewerEl.dataset.pdfsourceid);
-        }
-        
+        if (viewerEl && viewerEl.dataset.pdfsourceid) removerPdfDoDb(viewerEl.dataset.pdfsourceid);
         const videoEl = card.querySelector('[data-mediasourceid]');
-        if (videoEl && videoEl.dataset.mediasourceid) {
-          removerMediaDoDb(videoEl.dataset.mediasourceid);
-        }
-
+        if (videoEl && videoEl.dataset.mediasourceid) removerMediaDoDb(videoEl.dataset.mediasourceid);
         card.remove();
+        atualizarToolbarSelecao();
         salvarEstadoNoStorage();
       }
     }
 
+    // --- INTERACT.JS CONFIG (Arrastar e Redimensionar) ---
     function applyInteract(element) {
       interact(element)
         .draggable({
-          allowFrom: '.card-header',
+          allowFrom: '.card-header', // Só arrasta pegando pelo título
           inertia: false,
           listeners: {
             start(event) {
-              document.querySelectorAll('.codex-card').forEach(c => c.style.zIndex = 10);
+              if (forcePanMode) return; // Bloqueia arraste do card se o modo mover quadro estiver ativo
+              if (event.target.classList.contains('card-fullscreen')) return; // Não arrasta em tela cheia
+              document.querySelectorAll('.codex-card').forEach(c => {
+                if(!c.classList.contains('selected-card')) c.style.zIndex = 10;
+              });
               event.target.style.zIndex = 50;
               document.body.classList.add('dragging-active');
             },
             move(event) {
+              if (forcePanMode) return; // Bloqueia arraste do card se o modo mover quadro estiver ativo
               const target = event.target;
-              const currentLeft = parseFloat(target.style.left) || 0;
-              const currentTop = parseFloat(target.style.top) || 0;
-              target.style.left = `${currentLeft + event.dx / zoom}px`;
-              target.style.top = `${currentTop + event.dy / zoom}px`;
+              if (target.classList.contains('card-fullscreen')) return;
+              
+              const dx = event.dx / zoom; // Ajusta a velocidade de arraste de acordo com o zoom
+              const dy = event.dy / zoom;
+              const cardsParaMover = new Set();
+              
+              if (target.classList.contains('selected-card')) {
+                document.querySelectorAll('.selected-card').forEach(c => cardsParaMover.add(c));
+              } else {
+                cardsParaMover.add(target);
+              }
+
+              // Checa agrupamentos
+              const gruposAdicionados = new Set();
+              cardsParaMover.forEach(card => {
+                if (card.dataset.groupId && !gruposAdicionados.has(card.dataset.groupId)) {
+                  gruposAdicionados.add(card.dataset.groupId);
+                  document.querySelectorAll(`[data-group-id="${card.dataset.groupId}"]`).forEach(c => cardsParaMover.add(c));
+                }
+              });
+              
+              // Executa movimento
+              cardsParaMover.forEach(card => {
+                const currentLeft = parseFloat(card.style.left) || 0;
+                const currentTop = parseFloat(card.style.top) || 0;
+                card.style.left = `${currentLeft + dx}px`;
+                card.style.top = `${currentTop + dy}px`;
+              });
             },
             end() {
               document.body.classList.remove('dragging-active');
@@ -721,15 +1009,41 @@
           }
         })
         .resizable({
-          edges: { right: true, bottom: true },
+          edges: { right: true, bottom: true }, // Só redimensiona pela direita e por baixo
           listeners: {
-            start() { document.body.classList.add('dragging-active'); },
+            start(event) { 
+              if (forcePanMode) return; // Bloqueia redimensionamento
+              if (event.target.classList.contains('card-fullscreen')) return;
+              document.body.classList.add('dragging-active'); 
+            },
             move(event) {
+              if (forcePanMode) return; // Bloqueia redimensionamento
               const target = event.target;
-              const newWidth = parseFloat(target.style.width) + event.edges.right * (event.dx / zoom);
-              const newHeight = parseFloat(target.style.height) + event.edges.bottom * (event.dy / zoom);
-              target.style.width = `${newWidth}px`;
-              target.style.height = `${newHeight}px`;
+              if (target.classList.contains('card-fullscreen')) return;
+              const dw = event.edges.right * (event.dx / zoom);
+              const dh = event.edges.bottom * (event.dy / zoom);
+              const cardsParaRedimensionar = new Set();
+              
+              if (target.classList.contains('selected-card')) {
+                document.querySelectorAll('.selected-card').forEach(c => cardsParaRedimensionar.add(c));
+              } else {
+                cardsParaRedimensionar.add(target);
+              }
+
+              const gruposAdicionados = new Set();
+              cardsParaRedimensionar.forEach(card => {
+                if (card.dataset.groupId && !gruposAdicionados.has(card.dataset.groupId)) {
+                  gruposAdicionados.add(card.dataset.groupId);
+                  document.querySelectorAll(`[data-group-id="${card.dataset.groupId}"]`).forEach(c => cardsParaRedimensionar.add(c));
+                }
+              });
+
+              cardsParaRedimensionar.forEach(card => {
+                const currentWidth = parseFloat(card.style.width) || 230;
+                const currentHeight = parseFloat(card.style.height) || 160;
+                card.style.width = `${Math.max(230, currentWidth + dw)}px`;
+                card.style.height = `${Math.max(160, currentHeight + dh)}px`;
+              });
             },
             end() {
               document.body.classList.remove('dragging-active');
@@ -737,11 +1051,14 @@
             }
           },
           modifiers: [
-            interact.modifiers.restrictSize({ min: { width: 200, height: 140 } })
+            interact.modifiers.restrictSize({ min: { width: 230, height: 160 } }) // Tamanho mínimo de um card
           ]
         });
     }
 
+    // --- INTERAÇÕES COM LINKS EXTERNOS (COLAR CTRL+V OU MANUAL) ---
+
+    // Acionado pelo botão no menu lateral
     async function colarLinkManual() {
       try {
         const pastedText = await navigator.clipboard.readText();
@@ -752,17 +1069,87 @@
       }
     }
 
+    // Processa uma URL inserida, verificando o que criar baseado na extensão (.pdf, vídeo, imagem, text, iframe)
     function tratarLinkColado(pastedText) {
       if (pastedText.startsWith('http://') || pastedText.startsWith('https://')) {
-        let hostname = 'Link';
-        try { hostname = new URL(pastedText).hostname; } catch (err) { }
-        const bodyHtml = `
-          <div class="p-4 text-center bg-slate-50 dark:bg-slate-950/40 h-full flex flex-col justify-between items-center gap-2">
-            <input type="text" value="" placeholder="Dar um nome/tag..." oninput="atualizarTagLink(this)" class="w-full text-xs font-medium px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 focus:outline-none focus:border-amber-500 text-slate-700 dark:text-slate-200 select-text">
-            <p class="text-[10px] text-slate-400 dark:text-slate-500 font-mono truncate w-full px-1" title="${pastedText}">${pastedText}</p>
-            <a href="${pastedText}" target="_blank" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-xl shadow text-xs transition-all flex items-center justify-center gap-1">Visitar Link ↗</a>
-          </div>`;
-        createCard('LINK', hostname, bodyHtml, 280);
+        let finalUrl = pastedText;
+        let isDriveFile = false;
+        let nomeArquivo = "Documento.pdf";
+
+        // Tenta contornar as URLs de preview do Google Drive
+        if (pastedText.includes('drive.google.com') && pastedText.includes('/file/d/')) {
+          isDriveFile = true;
+          const partesUrl = pastedText.split('/file/d/');
+          if (partesUrl[1]) {
+            const fileId = partesUrl[1].split('/')[0];
+            finalUrl = `https://drive.google.com/file/d/${fileId}/preview`;
+            nomeArquivo = "Google Drive PDF";
+          }
+        }
+
+        const urlSemQuery = pastedText.split('?')[0];
+        const urlLower = urlSemQuery.toLowerCase();
+        nomeArquivo = urlSemQuery.substring(urlSemQuery.lastIndexOf('/') + 1) || "Arquivo Web";
+
+        // Geração como iframe (Renderizador web nativo)
+        if (isDriveFile || urlLower.endsWith('.pdf')) {
+          if (!isDriveFile) nomeArquivo = urlSemQuery.substring(urlSemQuery.lastIndexOf('/') + 1) || "Documento.pdf";
+          
+          const bodyHtml = `
+            <div class="w-full h-full bg-slate-900 flex flex-col relative select-none">
+              <div class="flex-1 overflow-hidden bg-slate-950 pointer-events-auto" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();">
+                <iframe src="${finalUrl}" class="w-full h-full border-0" title="${nomeArquivo}" allow="autoplay"></iframe>
+              </div>
+            </div>`;
+          
+          const customWidth = window.innerWidth > 800 ? 550 : 340;
+          createCard(isDriveFile ? 'DRIVE PDF' : 'PDF', nomeArquivo, bodyHtml, customWidth, null);
+        } 
+        else if (/\.(jpg|jpeg|png|gif|webp|svg)$/i.test(urlLower)) {
+          const ext = urlLower.split('.').pop().toUpperCase();
+          const bodyHtml = `<div class="bg-slate-100 dark:bg-slate-950 overflow-hidden h-full flex items-center justify-center cursor-pointer" onclick="openModal('${nomeArquivo}', '<img src=\\'${pastedText}\\' class=\\'max-w-full max-h-[75vh] mx-auto object-contain\\'>')">
+                              <img src="${pastedText}" alt="${nomeArquivo}" class="w-full h-full object-contain">
+                            </div>`;
+          createCard(ext, nomeArquivo, bodyHtml, 320);
+        }
+        else if (/\.(mp4|webm|ogg|mov)$/i.test(urlLower)) {
+          const ext = urlLower.split('.').pop().toUpperCase();
+          const bodyHtml = `<div class="w-full h-full bg-slate-950 flex items-center justify-center" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();">
+                              <video src="${pastedText}" controls class="w-full h-full object-contain pointer-events-auto"></video>
+                            </div>`;
+          createCard(ext, nomeArquivo, bodyHtml, 360);
+        }
+        else if (/\.(mp3|wav|ogg|m4a|flac)$/i.test(urlLower)) {
+          const ext = urlLower.split('.').pop().toUpperCase();
+          const bodyHtml = `<div class="p-4 bg-slate-50 dark:bg-slate-950 h-full flex flex-col justify-center items-center gap-2" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();">
+                              <span class="text-[2rem]">🎵</span>
+                              <audio src="${pastedText}" controls class="w-full pointer-events-auto"></audio>
+                            </div>`;
+          createCard(ext, nomeArquivo, bodyHtml, 300);
+        }
+        // Se for arquivo de texto da web, tenta fazer requisição fetch()
+        else if (urlLower.endsWith('.txt') || urlLower.endsWith('.md')) {
+          const ext = urlLower.split('.').pop().toUpperCase();
+          const targetLeft = mouseXCanvas || (Math.abs(panX) / zoom + 350);
+          const targetTop = mouseYCanvas || (Math.abs(panY) / zoom + 150);
+          
+          fetch(pastedText)
+            .then(res => res.text())
+            .then(text => {
+              const bodyHtml = `<div class="p-4 text-sm h-full overflow-y-auto text-slate-700 dark:text-slate-300 font-mono bg-slate-50/50 dark:bg-slate-950/50 whitespace-pre-wrap" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();">${escapeHTML(text)}</div>`;
+              const props = { width: '290px', height: '280px', left: `${targetLeft}px`, top: `${targetTop}px` };
+              createCard(ext, nomeArquivo, bodyHtml, 290, props);
+              salvarEstadoNoStorage();
+            })
+            .catch(err => { processLinkCard(pastedText, 'Erro de Carregamento'); });
+          return;
+        } 
+        else {
+          // Se for só uma URL normal (Site), vira uma anotação de favoritos
+          processLinkCard(pastedText, '');
+        }
+
+        // Posiciona onde o mouse estiver
         const cards = document.querySelectorAll('.codex-card');
         const lastCard = cards[cards.length - 1];
         if (lastCard) {
@@ -775,24 +1162,50 @@
       }
     }
 
+    // --- GERENCIAMENTO DE ESTADO (SALVAR E CARREGAR NO NAVEGADOR) ---
+    
+    // Coleta todas as informações de tamanho, posição e conteúdo de todos os cards da tela
     function salvarEstadoNoStorage() {
       const cardsData = [];
       document.querySelectorAll('.codex-card').forEach(card => {
-        const inputTag = card.querySelector('input[type="text"]');
-        if (inputTag) inputTag.setAttribute('value', inputTag.value);
+        // Fix para que os textos inputados mantenham seu value HTML
+        card.querySelectorAll('input[type="text"]').forEach(input => {
+          input.setAttribute('value', input.value);
+        });
 
         const viewerEl = card.querySelector('[data-viewerid]');
         const videoEl = card.querySelector('[data-mediasourceid]');
+        const isNOTAS = card.dataset.filetype === 'NOTAS';
+        
         let savedCurrentPage = 1;
         let savedPdfSourceId = "";
         let savedMediaSourceId = "";
+        let savedPagesArray = [];
 
+        // Verifica tipo do card para ver como ele deve ser salvo
         if (viewerEl) {
           savedCurrentPage = parseInt(viewerEl.dataset.currentPage) || 1;
           savedPdfSourceId = viewerEl.dataset.pdfsourceid || "";
         }
         if (videoEl) {
           savedMediaSourceId = videoEl.dataset.mediasourceid || "";
+        }
+        if (isNOTAS) {
+          // Notas são salvas como imagens JPEG levemente compactadas para otimização extrema no mobile
+          const drawCanvases = card.querySelectorAll('.drawing-canvas');
+          drawCanvases.forEach(canvas => {
+            // Se o canvas não foi alterado e já possui imagem em cache, utiliza o cache
+            if (!canvas.dataset.cachedData || canvas.dataset.isDirty === "true") {
+              canvas.dataset.cachedData = canvas.toDataURL('image/jpeg', 0.5); // 50% de qualidade JPEG
+              canvas.dataset.isDirty = "false"; // Reseta o estado dirty
+            }
+            savedPagesArray.push({
+              id: canvas.id,
+              data: canvas.dataset.cachedData,
+              zoom: canvas.dataset.zoom || "1",
+              color: canvas.dataset.color || "#1e293b"
+            });
+          });
         }
 
         cardsData.push({
@@ -805,16 +1218,22 @@
           currentPage: savedCurrentPage,
           pdfSourceId: savedPdfSourceId,
           mediaSourceId: savedMediaSourceId,
-          bodyContent: (viewerEl || videoEl) ? "" : card.querySelector('.card-body-holder').innerHTML 
+          pagesArray: savedPagesArray,
+          groupId: card.dataset.groupId || "",
+          globalColor: card.dataset.currentGlobalColor || "#1e293b",
+          paperType: card.dataset.paperType || "A4", // Salva o tipo de papel
+          bodyContent: (viewerEl || videoEl || isNOTAS) ? "" : card.querySelector('.card-body-holder').innerHTML 
         });
       });
+      // Converte tudo pra JSON string e guarda no localStorage
       localStorage.setItem('dexi_codex_cards', JSON.stringify(cardsData));
     }
 
+    // Chamada no OnLoad para ler do armazenamento e redesenhar os cards
     function carregarEstadoDoStorage() {
       const rawData = localStorage.getItem('dexi_codex_cards');
       const menuVisible = localStorage.getItem('dexi_menu_visible');
-      toggleMenu(menuVisible !== 'false');
+      toggleMenu(menuVisible !== 'false'); // Restaura estado do menu
 
       if (!rawData) return;
       try {
@@ -822,7 +1241,7 @@
         cardsData.forEach(c => {
           if ((c.filetype === 'PDF' || c.filetype === 'LEITOR PDF') && c.pdfSourceId) {
             montarEGerarLeitorPdf(c.pdfSourceId, c.filename, c.currentPage, {
-              width: c.width, height: c.height, left: c.left, top: c.top
+              width: c.width, height: c.height, left: c.left, top: c.top, groupId: c.groupId
             });
           } else if (c.mediaSourceId) {
             const transaction = db.transaction(["media"], "readonly");
@@ -831,40 +1250,44 @@
               const blob = e.target.result;
               if (!blob) return;
               const videoUrl = URL.createObjectURL(blob);
-              const bodyHtml = `<div class="w-full h-full bg-slate-950 flex items-center justify-center" data-mediasourceid="${c.mediaSourceId}">
+              const bodyHtml = `<div class="w-full h-full bg-slate-950 flex items-center justify-center" data-mediasourceid="${c.mediaSourceId}" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();">
                                   <video src="${videoUrl}" controls class="w-full h-full object-contain pointer-events-auto"></video>
                                 </div>`;
               createCard(c.filetype, c.filename, bodyHtml, 360, {
-                width: c.width, height: c.height, left: c.left, top: c.top
+                width: c.width, height: c.height, left: c.left, top: c.top, groupId: c.groupId
               });
             };
+          } else if (c.filetype === 'NOTAS') {
+            reconstruirCardNotasComPaginas(c);
           } else {
-            createCard(c.filetype, c.filename, c.bodyContent, 280, {
-              width: c.width, height: c.height, left: c.left, top: c.top
+            createCard(c.filetype, c.filename, c.bodyContent, c.width ? parseFloat(c.width) : 290, {
+              width: c.width, height: c.height, left: c.left, top: c.top, groupId: c.groupId
             });
           }
         });
-      } catch (e) {
-        console.error("Erro ao carregar dados", e);
-      }
+      } catch (e) { console.error("Erro ao carregar dados", e); }
     }
 
+    // Botão Limpar Tudo
     window.limparQuadro = function() {
       document.querySelectorAll('.codex-card').forEach(card => card.remove());
       localStorage.removeItem('dexi_codex_cards');
+      atualizarToolbarSelecao();
+      // Esvazia as tabelas do IndexedDB
       if (db) {
         const transaction = db.transaction(["pdfs"], "readwrite");
         transaction.objectStore(["pdfs"]).clear();
-        
         const mediaTransaction = db.transaction(["media"], "readwrite");
         mediaTransaction.objectStore(["media"]).clear();
       }
     }
 
+    // Previne erros de segurança de HTML injetado
     function escapeHTML(str) {
       return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
     }
 
+    // --- MODAL GENÉRICO DE VISUALIZAÇÃO (Imagens) ---
     window.openModal = function(title, contentHtml) {
       document.getElementById('modal-title').innerText = title;
       document.getElementById('modal-content').innerHTML = contentHtml;
@@ -880,6 +1303,7 @@
       if (e.target === this) closeModal();
     });
 
+    // Cancela o clique solto / drags pendentes
     function endAllInteractions() {
       isPanning = false;
       document.body.classList.remove('dragging-active');
@@ -892,11 +1316,619 @@
     window.addEventListener('mouseup', endAllInteractions);
     window.addEventListener('touchend', endAllInteractions);
 
+    // Evento de Colar (CTRL+V / CMD+V) global na tela (Suporta texto e imagens no mobile/tablet)
     window.addEventListener('paste', async (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      const pastedText = (e.clipboardData || window.clipboardData).getData('text').trim();
-      tratarLinkColado(pastedText);
+      
+      const items = (e.clipboardData || window.clipboardData).items;
+      let imagemDetectada = false;
+      
+      for (let item of items) {
+        if (item.type.indexOf('image') !== -1) {
+          imagemDetectada = true;
+          const file = item.getAsFile();
+          const customFile = new File([file], `imagem_colada_${Date.now()}.png`, { type: file.type });
+          await processAndCreateCard(customFile);
+        }
+      }
+      
+      if (!imagemDetectada) {
+        const pastedText = (e.clipboardData || window.clipboardData).getData('text').trim();
+        if (pastedText) tratarLinkColado(pastedText);
+      }
     });
+
+    // --- FUNÇÃO PARA ALTERNAR TELA CHEIA (Fullscreen em Cards) ---
+    // Ativa/Desativa o tamanho fixo da tela no dispositivo móvel
+    window.toggleFullscreenCard = function(card) {
+      if (!card) return;
+      
+      const isFullscreen = card.classList.contains('card-fullscreen');
+      
+      if (!isFullscreen) {
+        // Entrando em tela cheia: Salva as dimensões atuais
+        card.dataset.prevWidth = card.style.width;
+        card.dataset.prevHeight = card.style.height;
+        card.dataset.prevLeft = card.style.left;
+        card.dataset.prevTop = card.style.top;
+        card.dataset.prevTransform = card.style.transform;
+
+        card.classList.add('card-fullscreen');
+        
+        // Força a sobrescrita dos estilos inline que o interact.js aplica
+        card.style.width = '100vw';
+        card.style.height = '100dvh';
+        card.style.left = '0px';
+        card.style.top = '0px';
+        card.style.transform = 'none';
+      } else {
+        // Saindo da tela cheia: Restaura as dimensões originais
+        card.classList.remove('card-fullscreen');
+        
+        card.style.width = card.dataset.prevWidth || '';
+        card.style.height = card.dataset.prevHeight || '';
+        card.style.left = card.dataset.prevLeft || '';
+        card.style.top = card.dataset.prevTop || '';
+        card.style.transform = card.dataset.prevTransform || '';
+      }
+
+      const btn = card.querySelector('.fullscreen-toggle-btn');
+      if (btn) {
+        if (card.classList.contains('card-fullscreen')) {
+          btn.innerText = '🗗';
+          btn.setAttribute('title', 'Sair da Tela Cheia');
+          btn.classList.add('text-amber-400');
+        } else {
+          btn.innerText = '⛶';
+          btn.setAttribute('title', 'Tela Cheia');
+          btn.classList.remove('text-amber-400');
+        }
+      }
+    }
+
+    // --- SISTEMA AVANÇADO DE ANOTAÇÕES (CANVAS / NOTAS MULTIPAGINADAS) ---
+
+    // Abertura do Modal de seleção de papel
+    window.abrirModalNota = function() {
+      document.getElementById('paper-select-modal').classList.remove('hidden');
+    }
+
+    window.fecharModalNota = function() {
+      document.getElementById('paper-select-modal').classList.add('hidden');
+    }
+
+    window.criarNotaFromModal = function(tipoPapel) {
+      const nomeFolha = document.getElementById('nota-nome-input').value || "Folha Rascunho";
+      fecharModalNota();
+      criarNovaNota(nomeFolha, tipoPapel);
+    }
+
+    // Cria o card "Notas" vazio inicial respeitando o formato do papel
+    window.criarNovaNota = function(nomeFolha, tipoPapel) {
+      const initialCanvasId = 'canvas_page_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+      const config = paperConfigs[tipoPapel] || paperConfigs['A4'];
+
+      const bodyHtml = `
+        <div class="flex flex-col h-full bg-white relative group select-none pointer-events-auto">
+          <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-slate-800/90 backdrop-blur text-white px-3 py-1.5 rounded-full flex gap-2.5 opacity-40 group-hover:opacity-100 transition-opacity z-20 shadow-lg items-center text-xs" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();">
+            <button onclick="setDrawMode(this, 'pen')" class="p-1.5 rounded-lg bg-amber-500/30 ring-1 ring-amber-400 opacity-100 shadow-md transition-all scale-110" title="Caneta">✏️</button>
+            <button onclick="setDrawMode(this, 'eraser')" class="p-1.5 rounded-lg opacity-60 hover:opacity-100 hover:bg-slate-700/50 transition-all" title="Borracha">🧽</button>
+            <button onclick="setDrawMode(this, 'move')" class="p-1.5 rounded-lg opacity-60 hover:opacity-100 hover:bg-slate-700/50 transition-all" title="Mover pela folha">🖐️</button>
+            
+            <div class="flex items-center gap-1 text-[11px] bg-slate-700/60 px-1.5 py-0.5 rounded-md">
+              <span class="text-slate-400">px:</span>
+              <input type="number" min="1" max="50" value="4" oninput="setStrokeWidthCard(this.closest('.codex-card'), this.value)" class="w-7 bg-transparent text-center text-amber-400 font-bold font-mono focus:outline-none pointer-events-auto">
+            </div>
+
+            <input type="color" value="#1e293b" oninput="setColorCard(this.closest('.codex-card'), this.value)" class="w-6 h-6 ml-1 p-0 border-0 rounded bg-transparent cursor-pointer pointer-events-auto" title="Cor da Caneta">
+
+            <div class="w-px h-3 bg-slate-600"></div>
+            
+            <button onclick="adicionarNovaPaginaAoCard(this.closest('.codex-card'))" class="text-indigo-400 hover:text-indigo-300 transition-colors font-bold text-[11px]" title="Adicionar outra folha">+📄</button>
+
+            <div class="w-px h-3 bg-slate-600"></div>
+
+            <button onclick="zoomCanvasCard(this.closest('.codex-card'), 0.15)" class="text-slate-300 hover:text-amber-300 transition-colors font-bold text-xs" title="Aumentar Zoom">➕</button>
+            <button onclick="zoomCanvasCard(this.closest('.codex-card'), -0.15)" class="text-slate-300 hover:text-amber-300 transition-colors font-bold text-xs" title="Diminuir Zoom">➖</button>
+            
+            <div class="w-px h-3 bg-slate-600"></div>
+
+            <button onclick="downloadCardAsMultiPagePDF(this.closest('.codex-card'))" class="text-slate-300 hover:text-emerald-400 transition-colors text-sm" title="Baixar Tudo em PDF">📥</button>
+            <button onclick="clearAllCanvasesInCard(this.closest('.codex-card'))" class="text-slate-300 hover:text-rose-400 transition-colors" title="Limpar Tudo">🗑️</button>
+            
+            <div class="w-px h-3 bg-slate-600"></div>
+            <button onclick="toggleFullscreenCard(this.closest('.codex-card'))" class="fullscreen-toggle-btn text-slate-300 hover:text-amber-400 transition-colors font-bold text-xs" title="Tela Cheia">⛶</button>
+          </div>
+          
+          <div class="scroll-container-a4 flex-1 w-full h-full overflow-y-auto bg-slate-100 dark:bg-slate-950/30 p-4 flex flex-col gap-6 justify-start items-center m-0 pointer-events-auto" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();">
+            <div class="canvas-item-wrapper m-auto relative">
+              <canvas id="${initialCanvasId}" class="drawing-canvas shadow-xl bg-white block touch-none" width="${config.canvasW}" height="${config.canvasH}" data-mode="pen" data-stroke-width="4" data-color="#1e293b" data-zoom="1" style="width: ${config.cssW}px; height: ${config.cssH}px;"></canvas>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const targetLeft = mouseXCanvas || (Math.abs(panX) / zoom + 350);
+      const targetTop = mouseYCanvas || (Math.abs(panY) / zoom + 150);
+      const props = { width: `${config.cardW}px`, height: `${config.cardH}px`, left: `${targetLeft}px`, top: `${targetTop}px` };
+
+      const newCard = createCard('NOTAS', nomeFolha, bodyHtml, config.cardW, props);
+      newCard.dataset.currentGlobalMode = "pen";
+      newCard.dataset.currentGlobalStroke = "4";
+      newCard.dataset.currentGlobalColor = "#1e293b";
+      newCard.dataset.paperType = tipoPapel; // Salva o tipo no dataset do card
+
+      const canvasEl = newCard.querySelector('.drawing-canvas');
+      if (canvasEl) {
+        canvasEl.classList.add('initialized');
+        initDrawingCanvas(canvasEl);
+      }
+    }
+
+    // Adiciona "páginas" dentro do mesmo bloco de anotações
+    window.adicionarNovaPaginaAoCard = function(card) {
+      if (!card) return;
+      const scrollContainer = card.querySelector('.scroll-container-a4');
+      if (!scrollContainer) return;
+
+      const paperType = card.dataset.paperType || "A4";
+      const config = paperConfigs[paperType] || paperConfigs['A4'];
+
+      const newId = 'canvas_page_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+      const firstCanvas = card.querySelector('.drawing-canvas');
+      const currentZoom = firstCanvas ? firstCanvas.dataset.zoom : "1";
+      const currentMode = card.dataset.currentGlobalMode || "pen";
+      const currentStroke = card.dataset.currentGlobalStroke || "4";
+      const currentColor = card.dataset.currentGlobalColor || "#1e293b";
+
+      const calculatedWidth = config.cssW * parseFloat(currentZoom);
+      const calculatedHeight = config.cssH * parseFloat(currentZoom);
+
+      const wrapper = document.createElement('div');
+      wrapper.className = "canvas-item-wrapper m-auto relative";
+      wrapper.innerHTML = `
+        <button onclick="this.parentElement.remove(); salvarEstadoNoStorage();" class="absolute -top-2 -right-2 bg-rose-500 hover:bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[11px] font-bold shadow-lg z-10">&times;</button>
+        <canvas id="${newId}" class="drawing-canvas shadow-xl bg-white block touch-none" width="${config.canvasW}" height="${config.canvasH}" data-mode="${currentMode}" data-stroke-width="${currentStroke}" data-color="${currentColor}" data-zoom="${currentZoom}" style="width: ${calculatedWidth}px; height: ${calculatedHeight}px;"></canvas>
+      `;
+
+      scrollContainer.appendChild(wrapper);
+      const newCanvasEl = wrapper.querySelector('.drawing-canvas');
+      initDrawingCanvas(newCanvasEl);
+      salvarEstadoNoStorage();
+    }
+
+    // Aplica zoom internamente só na folha que está sendo desenhada
+    window.zoomCanvasCard = function(card, delta) {
+      if (!card) return;
+      const paperType = card.dataset.paperType || "A4";
+      const config = paperConfigs[paperType] || paperConfigs['A4'];
+      
+      const canvases = card.querySelectorAll('.drawing-canvas');
+      canvases.forEach(canvasEl => {
+        let currentZoom = parseFloat(canvasEl.dataset.zoom) || 1;
+        currentZoom += delta;
+        currentZoom = Math.max(0.4, Math.min(currentZoom, 3));
+        canvasEl.dataset.zoom = currentZoom;
+
+        canvasEl.style.width = `${config.cssW * currentZoom}px`;
+        canvasEl.style.height = `${config.cssH * currentZoom}px`;
+      });
+      salvarEstadoNoStorage();
+    }
+
+    // Converte os desenhos Canvas em arquivo PDF para Download local
+    window.downloadCardAsMultiPagePDF = function(card) {
+      if (!card) return;
+      const canvases = card.querySelectorAll('.drawing-canvas');
+      if (canvases.length === 0) return;
+
+      const paperType = card.dataset.paperType || "A4";
+      let format = 'a4';
+      let w = 210, h = 297, orientation = 'p';
+
+      if (paperType === 'Carta') {
+          format = 'letter';
+          w = 215.9; h = 279.4;
+      } else if (paperType === 'Quadro') {
+          format = [400, 400]; // mm
+          w = 400; h = 400;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF(orientation, 'mm', format);
+      const filename = card.dataset.filename || 'nota-rascunho';
+
+      canvases.forEach((canvasEl, index) => {
+        if (index > 0) pdf.addPage(format, orientation);
+        const imgData = canvasEl.toDataURL('image/jpeg', 1.0);
+        pdf.addImage(imgData, 'JPEG', 0, 0, w, h);
+      });
+
+      pdf.save(`${filename}.pdf`);
+    }
+
+    // Define estado de (Desenhar, Apagar, Arrastar folha)
+    window.setDrawMode = function(btn, mode) {
+      const card = btn.closest('.codex-card');
+      if (!card) return;
+      card.dataset.currentGlobalMode = mode;
+      
+      const canvases = card.querySelectorAll('.drawing-canvas');
+      canvases.forEach(c => c.dataset.mode = mode);
+
+      // Limpa os estados visuais apenas dos botões de ferramenta (Caneta, Borracha, Mover)
+      btn.parentElement.querySelectorAll('button').forEach(b => {
+        if (b.title === 'Caneta' || b.title === 'Borracha' || b.title === 'Mover pela folha') {
+          b.className = "p-1.5 rounded-lg opacity-60 hover:opacity-100 hover:bg-slate-700/50 transition-all";
+        }
+      });
+      
+      // Destaca visualmente o botão que acabou de ser clicado
+      btn.className = "p-1.5 rounded-lg bg-amber-500/30 ring-1 ring-amber-400 opacity-100 shadow-md transition-all scale-110";
+
+      const scrollContainer = card.querySelector('.scroll-container-a4');
+      if (scrollContainer) {
+        scrollContainer.style.cursor = mode === 'move' ? 'grab' : 'default';
+      }
+    }
+
+    // Altera e propaga tamanho do pincel
+    window.setStrokeWidthCard = function(card, value) {
+      if (!card) return;
+      card.dataset.currentGlobalStroke = value;
+      const canvases = card.querySelectorAll('.drawing-canvas');
+      canvases.forEach(c => c.dataset.strokeWidth = value);
+    }
+    
+    // Altera e propaga cor do pincel
+    window.setColorCard = function(card, value) {
+      if (!card) return;
+      card.dataset.currentGlobalColor = value;
+      const canvases = card.querySelectorAll('.drawing-canvas');
+      canvases.forEach(c => c.dataset.color = value);
+    }
+
+    window.clearAllCanvasesInCard = function(card) {
+      if (!card) return;
+      const canvases = card.querySelectorAll('.drawing-canvas');
+      canvases.forEach(canvasEl => {
+        const ctx = canvasEl.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvasEl.width, canvasEl.height);
+        canvasEl.dataset.isDirty = "true"; // Sinaliza alteração para o salvamento
+      });
+      salvarEstadoNoStorage();
+    }
+
+    // Reconstrói todo o card de Notas após recarregar a página (com imagens do Base64)
+    function reconstruirCardNotasComPaginas(c) {
+      const paperType = c.paperType || "A4";
+      const config = paperConfigs[paperType] || paperConfigs['A4'];
+      
+      const a4Width = c.width || `${config.cardW}px`;
+      const a4Height = c.height || `${config.cardH}px`;
+      const savedPages = c.pagesArray || [];
+      const globalColor = c.globalColor || "#1e293b";
+
+      let pagesContentHtml = "";
+      savedPages.forEach((page, index) => {
+        const currentZoom = parseFloat(page.zoom) || 1;
+        const pageColor = page.color || globalColor;
+        const calculatedWidth = config.cssW * currentZoom;
+        const calculatedHeight = config.cssH * currentZoom;
+
+        const deleteButton = index > 0 ? `<button onclick="this.parentElement.remove(); salvarEstadoNoStorage();" class="absolute -top-2 -right-2 bg-rose-500 hover:bg-rose-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-[11px] font-bold shadow-lg z-10">&times;</button>` : "";
+
+        pagesContentHtml += `
+          <div class="canvas-item-wrapper m-auto relative">
+            ${deleteButton}
+            <canvas id="${page.id}" class="drawing-canvas shadow-xl bg-white block touch-none" width="${config.canvasW}" height="${config.canvasH}" data-mode="pen" data-stroke-width="4" data-color="${pageColor}" data-zoom="${currentZoom}" style="width: ${calculatedWidth}px; height: ${calculatedHeight}px;"></canvas>
+          </div>
+        `;
+      });
+
+      const bodyHtml = `
+        <div class="flex flex-col h-full bg-white relative select-none pointer-events-auto">
+          <div class="flex-shrink-0 sticky top-0 left-0 w-full bg-slate-800/95 backdrop-blur text-white px-2 sm:px-3 py-1.5 flex flex-wrap gap-1.5 sm:gap-2.5 z-20 shadow-lg items-center justify-center text-xs" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();">
+            <button onclick="setDrawMode(this, 'pen')" class="p-1.5 rounded-lg bg-amber-500/30 ring-1 ring-amber-400 opacity-100 shadow-md transition-all scale-110" title="Caneta">✏️</button>
+            <button onclick="setDrawMode(this, 'eraser')" class="p-1.5 rounded-lg opacity-60 hover:opacity-100 hover:bg-slate-700/50 transition-all" title="Borracha">🧽</button>
+            <button onclick="setDrawMode(this, 'move')" class="p-1.5 rounded-lg opacity-60 hover:opacity-100 hover:bg-slate-700/50 transition-all" title="Mover pela folha">🖐️</button>
+            
+            <div class="flex items-center gap-1 text-[11px] bg-slate-700/60 px-1.5 py-0.5 rounded-md">
+              <span class="text-slate-400">px:</span>
+              <input type="number" min="1" max="50" value="4" oninput="setStrokeWidthCard(this.closest('.codex-card'), this.value)" class="w-7 bg-transparent text-center text-amber-400 font-bold font-mono focus:outline-none pointer-events-auto">
+            </div>
+            
+            <input type="color" value="${globalColor}" oninput="setColorCard(this.closest('.codex-card'), this.value)" class="w-6 h-6 ml-1 p-0 border-0 rounded bg-transparent cursor-pointer pointer-events-auto" title="Cor da Caneta">
+
+            <div class="hidden sm:block w-px h-3 bg-slate-600"></div>
+            
+            <button onclick="adicionarNovaPaginaAoCard(this.closest('.codex-card'))" class="text-indigo-400 hover:text-indigo-300 transition-colors font-bold text-[11px] whitespace-nowrap" title="Adicionar outra folha">+📄</button>
+
+            <div class="hidden sm:block w-px h-3 bg-slate-600"></div>
+
+            <button onclick="zoomCanvasCard(this.closest('.codex-card'), 0.15)" class="text-slate-300 hover:text-amber-300 transition-colors font-bold text-xs" title="Aumentar Zoom">➕</button>
+            <button onclick="zoomCanvasCard(this.closest('.codex-card'), -0.15)" class="text-slate-300 hover:text-amber-300 transition-colors font-bold text-xs" title="Diminuir Zoom">➖</button>
+            
+            <div class="hidden sm:block w-px h-3 bg-slate-600"></div>
+
+            <button onclick="downloadCardAsMultiPagePDF(this.closest('.codex-card'))" class="text-slate-300 hover:text-emerald-400 transition-colors text-sm" title="Baixar Tudo em PDF">📥</button>
+            <button onclick="clearAllCanvasesInCard(this.closest('.codex-card'))" class="text-slate-300 hover:text-rose-400 transition-colors" title="Limpar Tudo">🗑️</button>
+            
+            <div class="hidden sm:block w-px h-3 bg-slate-600"></div>
+            <button onclick="toggleFullscreenCard(this.closest('.codex-card'))" class="fullscreen-toggle-btn text-slate-300 hover:text-amber-400 transition-colors font-bold text-xs" title="Tela Cheia">⛶</button>
+          </div>
+          
+          <div class="scroll-container-a4 flex-1 w-full overflow-y-auto bg-slate-100 dark:bg-slate-950/30 p-4 flex flex-col gap-6 justify-start items-center m-0 pointer-events-auto" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();">
+            ${pagesContentHtml}
+          </div>
+        </div>
+      `;
+
+      const newCard = createCard('NOTAS', c.filename, bodyHtml, parseFloat(a4Width), {
+        width: a4Width, height: a4Height, left: c.left, top: c.top, groupId: c.groupId
+      });
+      newCard.dataset.currentGlobalMode = "pen";
+      newCard.dataset.currentGlobalStroke = "4";
+      newCard.dataset.currentGlobalColor = globalColor;
+      newCard.dataset.paperType = paperType; // Resgata o tipo de papel do save
+
+      savedPages.forEach(p => {
+        const canvasEl = newCard.querySelector(`#${p.id}`);
+        if (canvasEl) {
+          canvasEl.classList.add('initialized');
+          canvasEl.dataset.cachedData = p.data; // Armazena a imagem carregada no cache inicial do elemento
+          initDrawingCanvas(canvasEl, p.data); // Recarrega imagem do Storage na tela
+        }
+      });
+    }
+
+    // INICIALIZAÇÃO DE CANETAS DO CANVAS DE NOTAS (O coração dos rabiscos)
+    window.initDrawingCanvas = function(canvasEl, savedDataUrl = null) {
+      if (!canvasEl) return;
+      const ctx = canvasEl.getContext('2d');
+      
+      // Ativa suavização para evitar pixelamento
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      
+      // O fundo precisa ser preenchido de branco para o JSpdf ler depois
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvasEl.width, canvasEl.height);
+
+      if (savedDataUrl) {
+        const img = new Image();
+        img.onload = () => ctx.drawImage(img, 0, 0);
+        img.src = savedDataUrl;
+      }
+
+      let isDrawing = false;
+      let isMoving = false;
+      let isTwoFingerScrolling = false;
+      let lastTwoFingerCenter = { x: 0, y: 0 };
+      let lastX = 0; let lastY = 0;
+      let lastClientX = 0; let lastClientY = 0;
+      let saveTimeout = null;
+
+      // --- Variável para travar no toque correto e ignorar a palma ---
+      let activeTouchId = null;
+
+      // Pega a posição usando coordenadas X e Y explícitas
+      function getPos(clientX, clientY) {
+        const rect = canvasEl.getBoundingClientRect();
+        return {
+          x: (clientX - rect.left) * (canvasEl.width / rect.width),
+          y: (clientY - rect.top) * (canvasEl.height / rect.height)
+        };
+      }
+
+      // Filtro Inteligente de Toque para precaver toques acidentais
+      function getValidTouch(touches) {
+        // 1. Prioriza a caneta (stylus) se estiver em uso
+        for (let i = 0; i < touches.length; i++) {
+          if (touches[i].touchType === 'stylus') return touches[i];
+        }
+        // 2. Se for dedo, procura um toque que NÃO seja muito largo (rejeição de palma)
+        for (let i = 0; i < touches.length; i++) {
+          if (touches[i].radiusX === undefined || touches[i].radiusX < 20) {
+            return touches[i];
+          }
+        }
+        return null; // Se for muito grande, assume que é palma encostada
+      }
+
+      function start(e) {
+        if (typeof forcePanMode !== 'undefined' && forcePanMode) return;
+        
+        // NOVO: Se o usuário tocar com 2 dedos, ativa o modo de rolagem automática das Notas
+        if (e.touches && e.touches.length === 2) {
+          isDrawing = false;
+          isMoving = false;
+          isTwoFingerScrolling = true;
+          const t1 = e.touches[0];
+          const t2 = e.touches[1];
+          lastTwoFingerCenter = {
+            x: (t1.clientX + t2.clientX) / 2,
+            y: (t1.clientY + t2.clientY) / 2
+          };
+          e.preventDefault();
+          if (e.stopPropagation) e.stopPropagation();
+          return;
+        }
+
+        isTwoFingerScrolling = false;
+        let clientX, clientY;
+
+        if (e.touches) {
+          const validTouch = getValidTouch(e.touches);
+          if (!validTouch) return; // Bloqueou a palma
+          
+          activeTouchId = validTouch.identifier; // Trava O ID deste dedo/caneta
+          clientX = validTouch.clientX;
+          clientY = validTouch.clientY;
+        } else {
+          if (e.button !== 0) return; // Ignora clique direito no mouse
+          clientX = e.clientX;
+          clientY = e.clientY;
+        }
+
+        e.preventDefault(); 
+
+        const mode = canvasEl.dataset.mode;
+        
+        if (mode === 'move') {
+          isMoving = true;
+          lastClientX = clientX;
+          lastClientY = clientY;
+          if (e.stopPropagation) e.stopPropagation();
+          return;
+        }
+        
+        isDrawing = true;
+        canvasEl.dataset.isDirty = "true"; 
+        const pos = getPos(clientX, clientY);
+        lastX = pos.x; lastY = pos.y;
+        
+        const strokeW = parseFloat(canvasEl.dataset.strokeWidth) || 4;
+        const color = canvasEl.dataset.color || '#1e293b';
+
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, mode === 'eraser' ? (strokeW * 6) / 2 : strokeW / 2, 0, 2 * Math.PI);
+        ctx.fillStyle = mode === 'eraser' ? '#ffffff' : color;
+        ctx.fill();
+        if (e.stopPropagation) e.stopPropagation();
+      }
+
+      function draw(e) {
+        // NOVO: Processa a rolagem por duas vias se houver exatamente dois dedos sobre a folha
+        if (e.touches && e.touches.length === 2 && isTwoFingerScrolling) {
+          e.preventDefault();
+          if (e.stopPropagation) e.stopPropagation();
+          const t1 = e.touches[0];
+          const t2 = e.touches[1];
+          const currentCenter = {
+            x: (t1.clientX + t2.clientX) / 2,
+            y: (t1.clientY + t2.clientY) / 2
+          };
+          const dx = currentCenter.x - lastTwoFingerCenter.x;
+          const dy = currentCenter.y - lastTwoFingerCenter.y;
+          
+          const scrollContainer = canvasEl.closest('.scroll-container-a4');
+          if (scrollContainer) {
+            scrollContainer.scrollLeft -= dx;
+            scrollContainer.scrollTop -= dy;
+          }
+          lastTwoFingerCenter = currentCenter;
+          return;
+        }
+
+        let clientX, clientY;
+
+        if (e.touches) {
+          // Procura o toque exato que iniciou a ação, ignorando palmas/outros dedos novos
+          let currentTouch = null;
+          for (let i = 0; i < e.touches.length; i++) {
+            if (e.touches[i].identifier === activeTouchId) {
+              currentTouch = e.touches[i];
+              break;
+            }
+          }
+          if (!currentTouch) return; // O dedo original ou caneta não está mais tocando na tela
+          
+          clientX = currentTouch.clientX;
+          clientY = currentTouch.clientY;
+        } else {
+          clientX = e.clientX;
+          clientY = e.clientY;
+        }
+
+        const mode = canvasEl.dataset.mode;
+        
+        if (mode === 'move') {
+          if (!isMoving) return;
+          e.preventDefault();
+          if (e.stopPropagation) e.stopPropagation();
+
+          const deltaX = clientX - lastClientX;
+          const deltaY = clientY - lastClientY;
+          lastClientX = clientX;
+          lastClientY = clientY;
+
+          const scrollContainer = canvasEl.closest('.scroll-container-a4');
+          if (scrollContainer) {
+            scrollContainer.scrollLeft -= deltaX;
+            scrollContainer.scrollTop -= deltaY;
+          }
+          return;
+        }
+
+        if (!isDrawing) return;
+        e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+        
+        const pos = getPos(clientX, clientY);
+        const strokeW = parseFloat(canvasEl.dataset.strokeWidth) || 4;
+        const color = canvasEl.dataset.color || '#1e293b';
+
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        if (mode === 'eraser') {
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.lineWidth = strokeW * 6;
+          ctx.strokeStyle = '#ffffff';
+        } else {
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.lineWidth = strokeW;
+          ctx.strokeStyle = color; 
+        }
+
+        ctx.stroke();
+        lastX = pos.x; lastY = pos.y;
+      }
+
+      function stop(e) {
+        if (isTwoFingerScrolling) {
+          isTwoFingerScrolling = false;
+          activeTouchId = null;
+          return;
+        }
+
+        // Se for toque, verifica se quem levantou foi o dedo principal
+        if (e && e.changedTouches) {
+          let activeLifted = false;
+          for (let i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === activeTouchId) {
+              activeLifted = true;
+              break;
+            }
+          }
+          if (!activeLifted && (isDrawing || isMoving)) return; 
+        }
+
+        activeTouchId = null;
+
+        if (isDrawing) {
+          isDrawing = false;
+          if (saveTimeout) clearTimeout(saveTimeout);
+          saveTimeout = setTimeout(() => {
+            salvarEstadoNoStorage(); 
+          }, 3000);
+        }
+        isMoving = false;
+      }
+
+      canvasEl.addEventListener('mousedown', start);
+      canvasEl.addEventListener('mousemove', draw);
+      window.addEventListener('mouseup', stop);
+      canvasEl.addEventListener('touchstart', start, { passive: false });
+      canvasEl.addEventListener('touchmove', draw, { passive: false });
+      window.addEventListener('touchend', stop);
+      window.addEventListener('touchcancel', stop);
+    }
   </script>
 </body>
 
