@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Dexi</title>
   <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
-  <meta name="description" content="Seu Codex de Arquivos, Links e Notas">
+  <meta name="description" content="Seu Codex de Conteúdos">
   
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
@@ -87,9 +87,14 @@
           <p class="text-[0.72rem] tracking-[0.18em] uppercase text-slate-500 dark:text-slate-400 m-0">Codex</p>
         </div>
 
+        <!-- BOTÕES DE COMANDO -->
+
         <div class="flex flex-col gap-2 mb-6">
+          <!-- SINCRONIZAR -->
           <button onclick="triggerFolderSelector()" class="w-full bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 font-medium py-2 px-4 rounded-xl border border-green-500/20 transition-all text-xs text-center flex items-center justify-center gap-2">Sincronizar</button>
+          <!-- COLAR -->
           <button onclick="colarLinkManual()" class="w-full bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-medium py-2 px-4 rounded-xl border border-blue-500/20 transition-all text-xs text-center flex items-center justify-center gap-2">Colar</button>
+          <!-- NOTAR -->
           <button onclick="abrirModalNota()" class="w-full bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 font-medium py-2 px-4 rounded-xl border border-purple-500/20 transition-all text-xs text-center flex items-center justify-center gap-2">Notar</button>
         </div>
 
@@ -98,7 +103,7 @@
         </div>
       </div>
 
-      <a href="https://github.com/MarcosDAnton/Dexi" target="_blank" rel="noopener noreferrer" class="absolute bottom-4 left-4 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-lg shadow-slate-400/20 transition-transform duration-200 hover:scale-105 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Abrir GitHub">
+      <a href="https://github.com/Dextre-Tecnologia/Dexi" target="_blank" rel="noopener noreferrer" class="absolute bottom-4 left-4 z-10 flex h-12 w-12 items-center justify-center rounded-full bg-white/95 dark:bg-slate-900/95 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 shadow-lg shadow-slate-400/20 transition-transform duration-200 hover:scale-105 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Abrir GitHub">
         <img src="https://uxwing.com/wp-content/themes/uxwing/download/brands-and-social-media/github-white-icon.png" class="w-6 h-6" alt="GitHub">
       </a>
     </aside>
